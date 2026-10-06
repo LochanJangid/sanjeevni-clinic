@@ -5,8 +5,18 @@ import psycopg
 import bcrypt
 from dotenv import load_dotenv
 from pathlib import Path
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
+
+# make middleware and add frontend server so only it is allow to talk to me
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["https://localhost:3000", "http://127.0.0.1:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"]
+)
 
 env_path = Path(__file__).resolve().parent.parent / ".env"
 load_dotenv(env_path)
@@ -23,6 +33,10 @@ class UserRegistration(BaseModel):
 @app.get("/")
 def root():
     return {"msg": "Welcome to sanjeevni clinic API side :]"}
+
+@app.get("/health")
+def health():
+    return {"msg": "Database is connected"} if DATABASE_URL is not None else {"msg": "Database connection problem"}
 
 @app.post("/user_registration/")
 def user_registration(user: UserRegistration):
