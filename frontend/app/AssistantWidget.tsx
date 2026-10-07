@@ -58,7 +58,13 @@ export default function AssistantWidget() {
       }
       setMessages((current) => [...current, { role: "assistant", content: data.reply }]);
     } catch (problem) {
-      setError(problem instanceof Error ? problem.message : "The assistant is temporarily unavailable.");
+      setError(
+        problem instanceof TypeError
+          ? "I couldn’t reach the assistant. Check your connection and try again, or contact the clinic directly."
+          : problem instanceof Error && !(problem instanceof SyntaxError)
+            ? problem.message
+            : "The assistant couldn’t complete that request. Please try again, or contact the clinic directly.",
+      );
     } finally {
       setSending(false);
     }
