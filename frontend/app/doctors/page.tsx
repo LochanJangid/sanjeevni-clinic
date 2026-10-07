@@ -43,16 +43,21 @@ export default function DoctorsPage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen flex items-center justify-center">
-        <p>Loading doctors...</p>
+      <main className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="rounded-2xl border bg-white px-6 py-5 shadow-sm">
+          <p className="text-sm font-medium text-gray-600">Loading doctors...</p>
+        </div>
       </main>
     );
   }
 
   if (error) {
     return (
-      <main className="min-h-screen flex items-center justify-center">
-        <p className="text-red-500">{error}</p>
+      <main className="min-h-screen flex items-center justify-center bg-gray-50 px-6">
+        <div className="max-w-md rounded-2xl border border-red-200 bg-red-50 p-6 text-center">
+          <p className="text-lg font-semibold text-red-700">Unable to load doctors</p>
+          <p className="mt-2 text-sm text-red-600">{error}</p>
+        </div>
       </main>
     );
   }
@@ -60,55 +65,66 @@ export default function DoctorsPage() {
   return (
     <main className="min-h-screen bg-gray-50 px-6 py-12">
       <div className="max-w-6xl mx-auto">
+        <div className="mb-10 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+          <div>
+            <p className="text-sm font-medium uppercase tracking-[0.15em] text-blue-600">Healthcare team</p>
+            <h1 className="text-3xl font-bold text-gray-900 mt-2">
+              Our Doctors
+            </h1>
+          </div>
 
-        <div className="mb-10">
-          <h1 className="text-3xl font-bold">
-            Our Doctors
-          </h1>
-
-          <p className="text-gray-600 mt-2">
-            Choose a doctor and book your appointment.
-          </p>
+          <Link
+            href="/appointments"
+            className="inline-flex items-center rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:border-blue-200 hover:text-blue-700"
+          >
+            View appointments
+          </Link>
         </div>
 
         {doctors.length === 0 ? (
-          <p>No doctors available.</p>
+          <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-10 text-center">
+            <p className="text-lg font-medium text-gray-700">No doctors available right now.</p>
+            <p className="mt-2 text-sm text-gray-500">Please check back later for new consultation slots.</p>
+          </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-
             {doctors.map((doctor) => (
               <div
                 key={doctor.id}
-                className="bg-white rounded-2xl p-6 shadow-sm border"
+                className="flex h-full flex-col rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
               >
-                <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center mb-5">
-                  <span className="text-2xl">👨‍⚕️</span>
+                <div className="mb-5 flex items-center justify-between">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-full bg-blue-100 text-2xl">
+                    👨‍⚕️
+                  </div>
+                  <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
+                    Available
+                  </span>
                 </div>
 
-                <h2 className="text-xl font-semibold">
-                  {doctor.name}
-                </h2>
+                <div className="space-y-2">
+                  <h2 className="text-xl font-semibold text-gray-900">{doctor.name}</h2>
+                  <p className="text-sm text-gray-500">Specialty ID: {doctor.category_id}</p>
+                  <p className="text-sm text-gray-500">Consultation fee</p>
+                  <p className="text-lg font-semibold text-gray-900">₹{doctor.fees}</p>
+                </div>
 
-                <p className="text-gray-500 mt-2">
-                  Category ID: {doctor.category_id}
-                </p>
-
-                <p className="font-medium mt-4">
-                  Consultation: ₹{doctor.fees}
-                </p>
+                <div className="mt-6 grid gap-2 text-sm text-gray-600">
+                  <p>• Flexible clinic availability</p>
+                  <p>• Follow-up support</p>
+                  <p>• Digital consultation records</p>
+                </div>
 
                 <Link
                   href={`/appointments/book?doctor_id=${doctor.id}`}
-                  className="block text-center mt-6 bg-blue-600 text-white py-3 rounded-xl hover:bg-blue-700 transition"
+                  className="mt-6 block rounded-xl bg-blue-600 px-4 py-3 text-center text-sm font-semibold text-white transition hover:bg-blue-700"
                 >
                   Book Appointment
                 </Link>
               </div>
             ))}
-
           </div>
         )}
-
       </div>
     </main>
   );

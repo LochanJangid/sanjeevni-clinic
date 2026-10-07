@@ -18,6 +18,8 @@ export default function BookAppointmentForm() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 
+  const minDate = new Date().toISOString().split("T")[0];
+
   function decodeJwtPayload(token: string) {
     try {
       const payload = token.split(".")[1];
@@ -47,7 +49,13 @@ export default function BookAppointmentForm() {
     }
 
     if (!date || !time) {
-      setMessage("Please select date and time.");
+      setMessage("Please select both a date and time.");
+      return;
+    }
+
+    const selectedDateTime = new Date(`${date}T${time}:00`);
+    if (Number.isNaN(selectedDateTime.getTime()) || selectedDateTime <= new Date()) {
+      setMessage("Please choose a future appointment time.");
       return;
     }
 
@@ -142,6 +150,7 @@ export default function BookAppointmentForm() {
 
               <input
                 type="date"
+                min={minDate}
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
                 className="w-full border rounded-xl px-4 py-3"
@@ -155,6 +164,8 @@ export default function BookAppointmentForm() {
 
               <input
                 type="time"
+                min="08:00"
+                max="19:00"
                 value={time}
                 onChange={(e) => setTime(e.target.value)}
                 className="w-full border rounded-xl px-4 py-3"

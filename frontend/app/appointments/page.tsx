@@ -36,15 +36,24 @@ export default function AppointmentsPage() {
         const userId = payload.sub;
 
         const response = await fetch(
-          `${API_URL}/appointments/user/${userId}`
+          `${API_URL}/appointments/user/${userId}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
         );
 
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.detail || "Unable to load appointments");
+        }
+
         const data = await response.json();
-
-        setAppointments(data);
-
+        setAppointments(Array.isArray(data) ? data : []);
       } catch (error) {
         console.error(error);
+        setAppointments([]);
       } finally {
         setLoading(false);
       }
