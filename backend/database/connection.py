@@ -1,8 +1,10 @@
 import os
-import psycopg
+import socket
+import urllib.parse
 from typing import Tuple
 from pathlib import Path
 from dotenv import load_dotenv
+import psycopg
 
 env_path = Path(__file__).resolve().parent.parent / ".env"
 load_dotenv(env_path)
@@ -10,12 +12,28 @@ load_dotenv(env_path)
 DATABASE_URL = os.getenv("DATABASE_URL_POOLED")
 
 
+def get_resolved_conn_string(url: str | None) -> str:
+    if not url:
+        return ""
+    try:
+        parsed = urllib.parse.urlparse(url)
+        if parsed.hostname and not parsed.hostname.replace(".", "").isdigit():
+            # Resolve IPv4 to avoid IPv6 unreachable errors on Linux hosts
+            ipv4 = socket.gethostbyname(parsed.hostname)
+            delimiter = "&" if "?" in url else "?"
+            return f"{url}{delimiter}hostaddr={ipv4}"
+    except Exception:
+        pass
+    return url
+
+
 class Database:
     def __init__(self):
         self.DATABASE_URL = DATABASE_URL
 
     def get_connection(self):
-        return psycopg.connect(self.DATABASE_URL)
+        conn_str = get_resolved_conn_string(self.DATABASE_URL)
+        return psycopg.connect(conn_str)
 
     def query(self, sql_query: str, query_params: Tuple | None = None, decision="fetchone"):
         params = query_params or ()
@@ -43,4 +61,5 @@ class Database:
 
 
 def get_connection():
-    return psycopg.connect(DATABASE_URL)
+    conn_str = get_resolved_conn_string(DATABASE_URL)
+    return psycopg.connect(conn_str)
