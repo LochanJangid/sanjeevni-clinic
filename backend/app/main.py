@@ -26,7 +26,7 @@ DATABASE_URL = os.getenv("DATABASE_URL_POOLED")
 # the schema for user registration
 class UserRegistration(BaseModel):
     username: str
-    email: EmailStr
+    email: EmailStr | None = None
     mobile: str | None = None
     password: str
 
