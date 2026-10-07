@@ -14,19 +14,6 @@ class Doctors(BaseModel):
     name: str
 
 
-def build_time_slots(start_hour: int = 9, end_hour: int = 17, slot_minutes: int = 30):
-    start = datetime.combine(date.today(), time(start_hour, 0))
-    end = datetime.combine(date.today(), time(end_hour, 0))
-    slots = []
-    current = start
-
-    while current + timedelta(minutes=slot_minutes) <= end:
-        slots.append(current.strftime("%H:%M"))
-        current += timedelta(minutes=slot_minutes)
-
-    return slots
-
-
 ## GET ALL DOCTORS ------------
 @router.get("/get_doctors")
 def get_doctors():
@@ -71,6 +58,9 @@ def get_doctor_slots(
         )
 
     slot_date = selected_date or date.today()
+    if slot_date < date.today():
+        raise HTTPException(status_code=400, detail="Choose a current or future date.")
+
     schedule_start = datetime.combine(slot_date, time(9, 0))
     schedule_end = datetime.combine(slot_date, time(17, 0))
 
@@ -79,18 +69,26 @@ def get_doctor_slots(
         SELECT appointment_time
         FROM appointments
         WHERE doctor_id = %s AND appointment_date = %s
+          AND status IS DISTINCT FROM 'cancelled'
         """,
         (doctor_id, slot_date),
         decision="fetchall",
     )
 
-    booked_times = {row["appointment_time"].strftime("%H:%M") for row in occupied_slots}
+    booked_times = [row["appointment_time"] for row in occupied_slots]
     slots = []
     current = schedule_start
 
     while current + timedelta(minutes=30) <= schedule_end:
         slot_time = current.strftime("%H:%M")
-        if slot_time not in booked_times and current > datetime.now():
+        candidate_start = current.time()
+        candidate_end = (current + timedelta(minutes=30)).time()
+        overlaps_existing = any(
+            booked_time < candidate_end
+            and (datetime.combine(slot_date, booked_time) + timedelta(minutes=30)).time() > candidate_start
+            for booked_time in booked_times
+        )
+        if not overlaps_existing and current > datetime.now():
             slots.append(slot_time)
         current += timedelta(minutes=30)
 

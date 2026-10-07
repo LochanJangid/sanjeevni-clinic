@@ -1,5 +1,5 @@
 import os
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta
 
 from fastapi import APIRouter, Header, HTTPException, status
 from jose import JWTError, jwt
@@ -7,169 +7,170 @@ from pydantic import BaseModel
 
 from database.connection import Database
 
-
-router = APIRouter(
-    prefix="/appointments",
-    tags=["appointments"]
-)
+router = APIRouter(prefix="/appointments", tags=["appointments"])
 
 db = Database()
 SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = "HS256"
+CLINIC_OPENS = time(9, 0)
+CLINIC_CLOSES = time(17, 0)
+APPOINTMENT_MINUTES = 30
 
-
-# ---------------- SCHEMA ----------------
 
 class AppointmentCreate(BaseModel):
-    user_id: int
     doctor_id: int
     appointment_date: date
     appointment_time: time
 
 
-def decode_user_token(authorization: str | None):
-    if not authorization or not authorization.startswith("Bearer "):
+class AppointmentReschedule(BaseModel):
+    appointment_date: date
+    appointment_time: time
+
+
+def authenticated_user_id(authorization: str | None) -> int:
+    if not authorization or not authorization.startswith("Bearer ") or not SECRET_KEY:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Missing or invalid authorization token",
+            detail="A valid login session is required",
         )
-
-    token = authorization.split(" ", 1)[1]
 
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-    except JWTError as exc:
+        payload = jwt.decode(
+            authorization.split(" ", 1)[1],
+            SECRET_KEY,
+            algorithms=[ALGORITHM],
+        )
+        return int(payload["sub"])
+    except (JWTError, KeyError, TypeError, ValueError) as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Session expired or invalid",
+            detail="Your session is invalid or expired. Please log in again.",
         ) from exc
 
-    return payload
 
-
-# ---------------- BOOK APPOINTMENT ----------------
-
-@router.post("/book")
-def book_appointment(
-    appointment: AppointmentCreate,
-    authorization: str | None = Header(default=None, alias="Authorization")
-):
-    token_payload = decode_user_token(authorization)
-    token_user_id = str(token_payload.get("sub"))
-
-    if token_user_id != str(appointment.user_id):
+def validate_slot(slot_date: date, slot_time: time) -> None:
+    if slot_time.tzinfo is not None:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You can only book appointments for your own account",
+            status_code=400,
+            detail="Appointment times must use the clinic's local time.",
         )
 
-    user = db.query(
-        "SELECT id FROM users WHERE id = %s",
-        (appointment.user_id,),
-        decision="fetchone",
+    now = datetime.now()
+    starts_at = datetime.combine(slot_date, slot_time)
+    closes_at = datetime.combine(slot_date, CLINIC_CLOSES)
+
+    if starts_at <= now:
+        raise HTTPException(status_code=400, detail="Choose an appointment time in the future.")
+
+    if slot_time < CLINIC_OPENS or starts_at + timedelta(minutes=APPOINTMENT_MINUTES) > closes_at:
+        raise HTTPException(
+            status_code=400,
+            detail="Appointments are available in 30-minute slots between 09:00 and 17:00.",
+        )
+
+    if slot_time.minute not in (0, 30) or slot_time.second or slot_time.microsecond:
+        raise HTTPException(
+            status_code=400,
+            detail="Choose one of the available 30-minute appointment times.",
+        )
+
+
+def lock_doctor_day(cursor, doctor_id: int, slot_date: date) -> None:
+    cursor.execute(
+        "SELECT pg_advisory_xact_lock(%s, %s)",
+        (doctor_id, slot_date.toordinal()),
     )
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found",
-        )
 
-    doctor = db.query(
-        "SELECT id FROM doctors WHERE id = %s",
-        (appointment.doctor_id,),
-        decision="fetchone",
-    )
-    if doctor is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Doctor not found",
-        )
 
-    today = date.today()
-    if appointment.appointment_date < today:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Appointment date cannot be in the past",
-        )
-
-    appointment_datetime = datetime.combine(
-        appointment.appointment_date,
-        appointment.appointment_time,
-    )
-    if appointment_datetime <= datetime.now():
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Appointment time must be in the future",
-        )
-
-    existing = db.query(
+def find_conflict(cursor, doctor_id: int, slot_date: date, slot_time: time, exclude_id: int | None = None):
+    cursor.execute(
         """
         SELECT id
         FROM appointments
         WHERE doctor_id = %s
           AND appointment_date = %s
-          AND appointment_time = %s
+          AND appointment_time < %s + INTERVAL '30 minutes'
+          AND appointment_time + INTERVAL '30 minutes' > %s
+          AND status IS DISTINCT FROM 'cancelled'
+          AND (%s IS NULL OR id <> %s)
+        LIMIT 1
         """,
         (
-            appointment.doctor_id,
-            appointment.appointment_date,
-            appointment.appointment_time,
+            doctor_id,
+            slot_date,
+            slot_time,
+            slot_time,
+            exclude_id,
+            exclude_id,
         ),
-        decision="fetchone",
     )
+    return cursor.fetchone()
 
-    if existing is not None:
-        return {
-            "success": False,
-            "msg": "This appointment slot is already booked",
-        }
 
-    new_appointment = db.query(
-        """
-        INSERT INTO appointments
-            (
-                user_id,
-                doctor_id,
-                appointment_date,
-                appointment_time
+@router.post("/book", status_code=status.HTTP_201_CREATED)
+def book_appointment(
+    appointment: AppointmentCreate,
+    authorization: str | None = Header(default=None, alias="Authorization"),
+):
+    user_id = authenticated_user_id(authorization)
+    validate_slot(appointment.appointment_date, appointment.appointment_time)
+
+    with db.get_connection() as connection:
+        with connection.cursor() as cursor:
+            lock_doctor_day(cursor, appointment.doctor_id, appointment.appointment_date)
+
+            cursor.execute("SELECT id FROM users WHERE id = %s", (user_id,))
+            if cursor.fetchone() is None:
+                raise HTTPException(status_code=404, detail="Patient account not found.")
+
+            cursor.execute("SELECT id FROM doctors WHERE id = %s", (appointment.doctor_id,))
+            if cursor.fetchone() is None:
+                raise HTTPException(status_code=404, detail="Doctor not found.")
+
+            if find_conflict(
+                cursor,
+                appointment.doctor_id,
+                appointment.appointment_date,
+                appointment.appointment_time,
+            ):
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="That appointment time was just booked. Choose another available time.",
+                )
+
+            cursor.execute(
+                """
+                INSERT INTO appointments
+                    (user_id, doctor_id, appointment_date, appointment_time)
+                VALUES (%s, %s, %s, %s)
+                RETURNING id, user_id, doctor_id, appointment_date, appointment_time, status
+                """,
+                (
+                    user_id,
+                    appointment.doctor_id,
+                    appointment.appointment_date,
+                    appointment.appointment_time,
+                ),
             )
-        VALUES
-            (%s, %s, %s, %s)
-        RETURNING *
-        """,
-        (
-            appointment.user_id,
-            appointment.doctor_id,
-            appointment.appointment_date,
-            appointment.appointment_time,
-        ),
-        decision="fetchone",
-    )
+            created = cursor.fetchone()
+            columns = [column.name for column in cursor.description]
 
-    return {
-        "success": True,
-        "msg": "Appointment booked successfully",
-        "appointment": new_appointment,
-    }
+    return {"success": True, "appointment": dict(zip(columns, created))}
 
-
-# ---------------- USER APPOINTMENTS ----------------
 
 @router.get("/user/{user_id}")
 def get_user_appointments(
     user_id: int,
-    authorization: str | None = Header(default=None, alias="Authorization")
+    authorization: str | None = Header(default=None, alias="Authorization"),
 ):
-    token_payload = decode_user_token(authorization)
-    token_user_id = str(token_payload.get("sub"))
-
-    if token_user_id != str(user_id):
+    if authenticated_user_id(authorization) != user_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="You can only view your own appointments",
+            detail="You can only view your own appointments.",
         )
 
-    appointments = db.query(
+    return db.query(
         """
         SELECT
             a.id,
@@ -180,15 +181,104 @@ def get_user_appointments(
             d.name AS doctor_name,
             d.fees
         FROM appointments a
-        JOIN doctors d
-            ON a.doctor_id = d.id
+        JOIN doctors d ON a.doctor_id = d.id
         WHERE a.user_id = %s
-        ORDER BY
-            a.appointment_date,
-            a.appointment_time
+        ORDER BY a.appointment_date, a.appointment_time
         """,
         (user_id,),
         decision="fetchall",
     )
 
-    return appointments
+
+@router.post("/{appointment_id}/cancel")
+def cancel_appointment(
+    appointment_id: int,
+    authorization: str | None = Header(default=None, alias="Authorization"),
+):
+    user_id = authenticated_user_id(authorization)
+
+    with db.get_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT status, appointment_date, appointment_time
+                FROM appointments
+                WHERE id = %s AND user_id = %s
+                FOR UPDATE
+                """,
+                (appointment_id, user_id),
+            )
+            appointment = cursor.fetchone()
+            if appointment is None:
+                raise HTTPException(status_code=404, detail="Appointment not found.")
+            if appointment[0] == "cancelled":
+                raise HTTPException(status_code=409, detail="This appointment is already cancelled.")
+            if appointment[0] == "completed":
+                raise HTTPException(status_code=409, detail="Completed appointments cannot be cancelled.")
+            if appointment[1] <= date.today() and datetime.combine(appointment[1], appointment[2]) <= datetime.now():
+                raise HTTPException(status_code=409, detail="Past visits cannot be cancelled.")
+
+            cursor.execute(
+                "UPDATE appointments SET status = 'cancelled' WHERE id = %s",
+                (appointment_id,),
+            )
+
+    return {"success": True, "msg": "Appointment cancelled."}
+
+
+@router.put("/{appointment_id}/reschedule")
+def reschedule_appointment(
+    appointment_id: int,
+    request: AppointmentReschedule,
+    authorization: str | None = Header(default=None, alias="Authorization"),
+):
+    user_id = authenticated_user_id(authorization)
+    validate_slot(request.appointment_date, request.appointment_time)
+
+    with db.get_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT doctor_id, appointment_date, status
+                FROM appointments
+                WHERE id = %s AND user_id = %s
+                FOR UPDATE
+                """,
+                (appointment_id, user_id),
+            )
+            current = cursor.fetchone()
+            if current is None:
+                raise HTTPException(status_code=404, detail="Appointment not found.")
+            doctor_id, _, current_status = current
+            if current_status in ("cancelled", "completed"):
+                raise HTTPException(
+                    status_code=409,
+                    detail="This appointment can no longer be rescheduled.",
+                )
+
+            lock_doctor_day(cursor, doctor_id, request.appointment_date)
+            if find_conflict(
+                cursor,
+                doctor_id,
+                request.appointment_date,
+                request.appointment_time,
+                exclude_id=appointment_id,
+            ):
+                raise HTTPException(
+                    status_code=409,
+                    detail="That time is no longer available. Select a different slot.",
+                )
+
+            cursor.execute(
+                """
+                UPDATE appointments
+                SET appointment_date = %s, appointment_time = %s
+                WHERE id = %s
+                RETURNING id, appointment_date, appointment_time, status
+                """,
+                (request.appointment_date, request.appointment_time, appointment_id),
+            )
+            updated = cursor.fetchone()
+            columns = [column.name for column in cursor.description]
+
+    return {"success": True, "appointment": dict(zip(columns, updated))}
