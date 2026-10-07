@@ -6,6 +6,8 @@ import bcrypt
 from dotenv import load_dotenv
 from pathlib import Path
 from fastapi.middleware.cors import CORSMiddleware
+from jose import jwt
+from datetime import datetime, timedelta, timezone
 
 app = FastAPI()
 
@@ -22,6 +24,11 @@ env_path = Path(__file__).resolve().parent.parent / ".env"
 load_dotenv(env_path)
 
 DATABASE_URL = os.getenv("DATABASE_URL_POOLED")
+
+# Get secret key for jwt
+SECRET_KEY = os.getenv("SECRET_KEY")
+ALGORITHM = "HS256"
+
 
 # the schema for user registration
 class UserRegistration(BaseModel):
@@ -90,8 +97,10 @@ def user_login(user: UserLogin):
         "auth_success": False
     }
 
-    if cur_user:
-        out["is_exists"] = True
+    if cur_user is None:
+        return out
+    
+    out["is_exists"] = True
 
     stored_pass_hash = cur_user[4]
 
@@ -104,4 +113,16 @@ def user_login(user: UserLogin):
             "email": cur_user[2],
             "mobile": cur_user[3],
         }
+
+        # make jwt token so it will stay login
+        access_token = jwt.encode(
+            {
+                "sub": str(cur_user[0]),
+                "username": str(cur_user[1]),
+                "exp": datetime.now(timezone.utc) + timedelta(hours=24) 
+            },
+            SECRET_KEY,
+            algorithm=ALGORITHM
+        )
+        out["access_token"] = access_token
     return out
