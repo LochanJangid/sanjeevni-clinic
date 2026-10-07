@@ -124,9 +124,11 @@ def book_appointment(
             if cursor.fetchone() is None:
                 raise HTTPException(status_code=404, detail="Patient account not found.")
 
-            cursor.execute("SELECT id FROM doctors WHERE id = %s", (appointment.doctor_id,))
-            if cursor.fetchone() is None:
+            cursor.execute("SELECT id, fees FROM doctors WHERE id = %s", (appointment.doctor_id,))
+            doc_row = cursor.fetchone()
+            if doc_row is None:
                 raise HTTPException(status_code=404, detail="Doctor not found.")
+            doc_fees = doc_row[1]
 
             if find_conflict(
                 cursor,
@@ -155,8 +157,19 @@ def book_appointment(
             )
             created = cursor.fetchone()
             columns = [column.name for column in cursor.description]
+            appt_dict = dict(zip(columns, created))
 
-    return {"success": True, "appointment": dict(zip(columns, created))}
+            # Automatically create pending invoice
+            cursor.execute(
+                """
+                INSERT INTO payments (appointment_id, user_id, amount, payment_method, status, created_at)
+                VALUES (%s, %s, %s, 'upi', 'pending', NOW())
+                ON CONFLICT (appointment_id) DO NOTHING
+                """,
+                (appt_dict["id"], user_id, doc_fees),
+            )
+
+    return {"success": True, "appointment": appt_dict}
 
 
 @router.get("/user/{user_id}")
@@ -164,7 +177,8 @@ def get_user_appointments(
     user_id: int,
     authorization: str | None = Header(default=None, alias="Authorization"),
 ):
-    if authenticated_user_id(authorization) != user_id:
+    claims = authenticated_user_id(authorization)
+    if claims != user_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You can only view your own appointments.",
@@ -179,15 +193,68 @@ def get_user_appointments(
             a.status,
             d.id AS doctor_id,
             d.name AS doctor_name,
-            d.fees
+            d.fees,
+            c.category_name,
+            COALESCE(p.status, 'pending') AS payment_status,
+            p.amount AS payment_amount,
+            p.transaction_id,
+            EXISTS (SELECT 1 FROM prescriptions rx WHERE rx.appointment_id = a.id) AS has_prescription
         FROM appointments a
         JOIN doctors d ON a.doctor_id = d.id
+        LEFT JOIN categories c ON d.category_id = c.id
+        LEFT JOIN payments p ON p.appointment_id = a.id
         WHERE a.user_id = %s
-        ORDER BY a.appointment_date, a.appointment_time
+        ORDER BY a.appointment_date DESC, a.appointment_time DESC
         """,
         (user_id,),
         decision="fetchall",
     )
+
+
+@router.get("/{appointment_id}")
+def get_appointment_detail(
+    appointment_id: int,
+    authorization: str | None = Header(default=None, alias="Authorization"),
+):
+    claims_id = authenticated_user_id(authorization)
+    appt = db.query(
+        """
+        SELECT
+            a.id,
+            a.user_id,
+            a.doctor_id,
+            a.appointment_date,
+            a.appointment_time,
+            a.status,
+            a.created_at,
+            d.name AS doctor_name,
+            d.fees,
+            c.category_name,
+            dp.clinic_address,
+            dp.qualification,
+            u.username AS patient_name,
+            u.email AS patient_email,
+            u.mobile AS patient_mobile,
+            COALESCE(p.status, 'pending') AS payment_status,
+            p.amount AS payment_amount,
+            p.payment_method,
+            p.transaction_id,
+            p.paid_at,
+            EXISTS (SELECT 1 FROM prescriptions rx WHERE rx.appointment_id = a.id) AS has_prescription
+        FROM appointments a
+        JOIN doctors d ON a.doctor_id = d.id
+        LEFT JOIN categories c ON d.category_id = c.id
+        LEFT JOIN doctor_profiles dp ON d.id = dp.doctor_id
+        JOIN users u ON a.user_id = u.id
+        LEFT JOIN payments p ON p.appointment_id = a.id
+        WHERE a.id = %s
+        """,
+        (appointment_id,),
+        decision="fetchone",
+    )
+    if not appt:
+        raise HTTPException(status_code=404, detail="Appointment not found.")
+    return appt
 
 
 @router.post("/{appointment_id}/cancel")

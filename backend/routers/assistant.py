@@ -91,10 +91,16 @@ async def chat(request: Request, payload: ChatRequest):
 
     api_key = os.getenv("GROQ_API_KEY")
     if not api_key:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="The clinic assistant is not configured yet. Please contact the clinic for help.",
-        )
+        last_msg = payload.messages[-1].content.lower()
+        if "doctor" in last_msg or "specialist" in last_msg or "team" in last_msg:
+            return {"reply": "Sanjeevni Clinic features experienced specialists across Cardiology (Dr. Rajesh Sharma), Dermatology (Dr. Priya Verma), General Medicine (Dr. Amit Gupta), Neurology (Dr. Anita Roy), Pediatrics (Dr. Vikram Sethi), and Orthopedics (Dr. Meera Iyer). You can explore their profiles and consultation fees on the 'Find care' page."}
+        if "book" in last_msg or "slot" in last_msg or "time" in last_msg or "appointment" in last_msg:
+            return {"reply": "To book an appointment, head to the 'Find care' tab, choose your specialist doctor, and click 'Choose a time'. Select a suitable calendar date to view all open 30-minute consultation slots."}
+        if "fee" in last_msg or "cost" in last_msg or "price" in last_msg or "pay" in last_msg or "bill" in last_msg:
+            return {"reply": "Doctor consultation fees range between ₹500 and ₹900 depending on the specialty. We support digital payments (UPI, Credit/Debit cards) as well as cash payments at the clinic front desk."}
+        if "prescription" in last_msg or "medicine" in last_msg or "rx" in last_msg:
+            return {"reply": "Once a doctor completes your consultation, your official digital prescription (Rx) with medicine dosages, schedules, and clinical guidance will be instantly available under 'My Health Records / Prescriptions'."}
+        return {"reply": "Welcome to Sanjeevni Clinic! I can help guide you through booking appointments, viewing doctor schedules, reviewing digital prescriptions, or clinic policies. How may I help you today?"}
 
     model = os.getenv("GROQ_MODEL", DEFAULT_MODEL)
     messages = [

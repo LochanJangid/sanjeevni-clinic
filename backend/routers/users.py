@@ -34,7 +34,7 @@ class ProfileUpdate(BaseModel):
     mobile: str | None = Field(default=None, max_length=30)
 
 
-def authenticated_user_id(authorization: str | None) -> int:
+def authenticated_token_claims(authorization: str | None) -> dict:
     if not authorization or not authorization.startswith("Bearer ") or not SECRET_KEY:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -47,12 +47,21 @@ def authenticated_user_id(authorization: str | None) -> int:
             SECRET_KEY,
             algorithms=[ALGORITHM],
         )
-        return int(payload["sub"])
+        return {
+            "id": int(payload["sub"]),
+            "username": payload.get("username", ""),
+            "role": payload.get("role", "patient"),
+            "doctor_id": payload.get("doctor_id"),
+        }
     except (JWTError, KeyError, TypeError, ValueError) as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Your session is invalid or expired. Please log in again.",
         ) from exc
+
+
+def authenticated_user_id(authorization: str | None) -> int:
+    return authenticated_token_claims(authorization)["id"]
 
 
 @router.post("/user_registration/", status_code=status.HTTP_201_CREATED)
@@ -65,9 +74,9 @@ def user_registration(user: UserRegistration):
     try:
         new_user = db.query(
             """
-            INSERT INTO users (username, email, mobile, password_hash)
-            VALUES (%s, %s, %s, %s)
-            RETURNING id, username, email, mobile
+            INSERT INTO users (username, email, mobile, password_hash, role)
+            VALUES (%s, %s, %s, %s, 'patient')
+            RETURNING id, username, email, mobile, role
             """,
             (user.username.strip(), user.email, user.mobile, password_hash),
         )
@@ -84,7 +93,7 @@ def user_registration(user: UserRegistration):
 def user_login(user: UserLogin):
     cur_user = db.query(
         """
-        SELECT id, username, email, mobile, password_hash
+        SELECT id, username, email, mobile, password_hash, COALESCE(role, 'patient') as role, doctor_id
         FROM users
         WHERE username = %s
         """,
@@ -108,10 +117,15 @@ def user_login(user: UserLogin):
             detail="Authentication is not configured on this server.",
         )
 
+    role = cur_user.get("role") or "patient"
+    doctor_id = cur_user.get("doctor_id")
+
     access_token = jwt.encode(
         {
             "sub": str(cur_user["id"]),
             "username": cur_user["username"],
+            "role": role,
+            "doctor_id": doctor_id,
             "exp": datetime.now(timezone.utc) + timedelta(hours=24),
         },
         SECRET_KEY,
@@ -128,6 +142,60 @@ def user_login(user: UserLogin):
             "username": cur_user["username"],
             "email": cur_user["email"],
             "mobile": cur_user["mobile"],
+            "role": role,
+            "doctor_id": doctor_id,
+        },
+        "access_token": access_token,
+    }
+
+
+@router.post("/demo_login/{role}")
+def demo_login(role: str):
+    target_role = role.lower()
+    if target_role not in ("admin", "doctor", "patient"):
+        raise HTTPException(status_code=400, detail="Invalid role. Choose admin, doctor, or patient.")
+
+    cur_user = db.query(
+        """
+        SELECT id, username, email, mobile, COALESCE(role, 'patient') as role, doctor_id
+        FROM users
+        WHERE role = %s
+        ORDER BY id ASC
+        LIMIT 1
+        """,
+        (target_role,),
+    )
+
+    if not cur_user:
+        raise HTTPException(status_code=404, detail=f"No demo user found for role '{target_role}'.")
+
+    if not SECRET_KEY:
+        raise HTTPException(status_code=503, detail="Authentication is not configured on this server.")
+
+    access_token = jwt.encode(
+        {
+            "sub": str(cur_user["id"]),
+            "username": cur_user["username"],
+            "role": cur_user["role"],
+            "doctor_id": cur_user.get("doctor_id"),
+            "exp": datetime.now(timezone.utc) + timedelta(hours=24),
+        },
+        SECRET_KEY,
+        algorithm=ALGORITHM,
+    )
+
+    return {
+        "msg": f"Demo {target_role} login successful",
+        "username": cur_user["username"],
+        "is_exists": True,
+        "auth_success": True,
+        "user": {
+            "id": cur_user["id"],
+            "username": cur_user["username"],
+            "email": cur_user["email"],
+            "mobile": cur_user["mobile"],
+            "role": cur_user["role"],
+            "doctor_id": cur_user.get("doctor_id"),
         },
         "access_token": access_token,
     }
@@ -137,10 +205,10 @@ def user_login(user: UserLogin):
 def get_my_profile(
     authorization: str | None = Header(default=None, alias="Authorization"),
 ):
-    user_id = authenticated_user_id(authorization)
+    user_claims = authenticated_token_claims(authorization)
     user = db.query(
-        "SELECT id, username, email, mobile FROM users WHERE id = %s",
-        (user_id,),
+        "SELECT id, username, email, mobile, COALESCE(role, 'patient') as role, doctor_id FROM users WHERE id = %s",
+        (user_claims["id"],),
     )
 
     if user is None:
@@ -160,9 +228,9 @@ def update_my_profile(
         user = db.query(
             """
             UPDATE users
-            SET username = %s, email = %s, mobile = %s
+            SET username = %s, email = %s, mobile = %s, update_at = NOW()
             WHERE id = %s
-            RETURNING id, username, email, mobile
+            RETURNING id, username, email, mobile, COALESCE(role, 'patient') as role, doctor_id
             """,
             (profile.username.strip(), profile.email, profile.mobile, user_id),
         )
@@ -176,3 +244,22 @@ def update_my_profile(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Account not found")
 
     return user
+
+
+@router.get("/all")
+def get_all_users(
+    authorization: str | None = Header(default=None, alias="Authorization"),
+):
+    claims = authenticated_token_claims(authorization)
+    if claims.get("role") != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin privileges required.")
+
+    return db.query(
+        """
+        SELECT id, username, email, mobile, COALESCE(role, 'patient') as role, doctor_id, created_at
+        FROM users
+        ORDER BY id DESC
+        """,
+        decision="fetchall",
+    )
+

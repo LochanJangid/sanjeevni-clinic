@@ -7,9 +7,12 @@ from routers import users
 from routers import doctors
 from routers import appointments
 from routers import assistant
+from routers import prescriptions
+from routers import billing
+from routers import admin
 from database.connection import Database
 
-app = FastAPI()
+app = FastAPI(title="Sanjeevni Clinic SaaS API", version="2.0.0")
 
 # make middleware and add frontend server so only it is allow to talk to me
 frontend_origins = [
@@ -33,6 +36,9 @@ app.include_router(users.router)
 app.include_router(doctors.router)
 app.include_router(appointments.router)
 app.include_router(assistant.router)
+app.include_router(prescriptions.router)
+app.include_router(billing.router)
+app.include_router(admin.router)
 
 ## ROOT ----------------------
 @app.get("/")
