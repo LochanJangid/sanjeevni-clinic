@@ -37,7 +37,7 @@ export default function LoginPage() {
     setPopup(null);
 
     try {
-      const response = await fetch(`${API_URL}/user_login/`, {
+      const response = await fetch(`${API_URL}/users/user_login/`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

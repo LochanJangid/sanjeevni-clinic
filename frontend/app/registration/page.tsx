@@ -50,7 +50,7 @@ export default function RegisterPage() {
     setPopup(null);
 
     try {
-      const response = await fetch(`${API_URL}/user_registration/`, {
+      const response = await fetch(`${API_URL}/users/user_registration/`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

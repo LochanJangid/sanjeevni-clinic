@@ -4,6 +4,8 @@ import bcrypt
 from pathlib import Path
 from fastapi.middleware.cors import CORSMiddleware
 from routers import users
+from routers import doctors
+from routers import appointments
 from database.connection import Database
 
 app = FastAPI()
@@ -19,6 +21,8 @@ app.add_middleware(
 
 ## ROUTERS ------------------
 app.include_router(users.router)
+app.include_router(doctors.router)
+app.include_router(appointments.router)
 
 ## ROOT ----------------------
 @app.get("/")

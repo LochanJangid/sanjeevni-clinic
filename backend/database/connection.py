@@ -9,6 +9,7 @@ load_dotenv(env_path)
 
 DATABASE_URL = os.getenv("DATABASE_URL_POOLED")
 
+
 class Database:
     def __init__(self):
         self.DATABASE_URL = DATABASE_URL
@@ -16,18 +17,28 @@ class Database:
     def get_connection(self):
         return psycopg.connect(self.DATABASE_URL)
 
-    def query(self, sql_query: str, query_params: Tuple, decision="fetchone"):
-        with get_connection() as conn:
-            with conn.cursor() as curr:
-                curr.execute(
-                    sql_query, query_params
-                )
+    def query(self, sql_query: str, query_params: Tuple | None = None, decision="fetchone"):
+        params = query_params or ()
 
-                
-                out = curr.fetchone()
-                if decision!="fetchone":
-                    out = curr.fetchall()
+        with self.get_connection() as conn:
+            with conn.cursor() as curr:
+                curr.execute(sql_query, params)
+
+                columns = [desc.name for desc in curr.description] if curr.description else []
+
+                if decision == "fetchall":
+                    rows = curr.fetchall()
+                    if not rows:
+                        return []
+                    out = [dict(zip(columns, row)) for row in rows]
+                else:
+                    row = curr.fetchone()
+                    if row is None:
+                        return None
+                    out = dict(zip(columns, row))
+
             conn.commit()
+
         return out
 
 
