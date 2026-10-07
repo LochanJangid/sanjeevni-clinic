@@ -10,8 +10,7 @@ interface Doctor {
   fees: number;
 }
 
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
 export default function DoctorsPage() {
   const [doctors, setDoctors] = useState<Doctor[]>([]);
@@ -21,17 +20,15 @@ export default function DoctorsPage() {
   useEffect(() => {
     async function fetchDoctors() {
       try {
-        const response = await fetch(
-          `${API_URL}/doctors/get_doctors`
-        );
+        const response = await fetch(`${API_URL}/doctors/get_doctors`);
 
         if (!response.ok) {
           throw new Error("Failed to fetch doctors");
         }
 
         const data = await response.json();
-        setDoctors(data);
-      } catch (error) {
+        setDoctors(Array.isArray(data) ? data : []);
+      } catch {
         setError("Unable to load doctors");
       } finally {
         setLoading(false);
@@ -64,13 +61,11 @@ export default function DoctorsPage() {
 
   return (
     <main className="min-h-screen bg-gray-50 px-6 py-12">
-      <div className="max-w-6xl mx-auto">
+      <div className="mx-auto max-w-6xl">
         <div className="mb-10 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div>
             <p className="text-sm font-medium uppercase tracking-[0.15em] text-blue-600">Healthcare team</p>
-            <h1 className="text-3xl font-bold text-gray-900 mt-2">
-              Our Doctors
-            </h1>
+            <h1 className="mt-2 text-3xl font-bold text-gray-900">Our Doctors</h1>
           </div>
 
           <Link
@@ -87,7 +82,7 @@ export default function DoctorsPage() {
             <p className="mt-2 text-sm text-gray-500">Please check back later for new consultation slots.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
             {doctors.map((doctor) => (
               <div
                 key={doctor.id}
@@ -115,12 +110,20 @@ export default function DoctorsPage() {
                   <p>• Digital consultation records</p>
                 </div>
 
-                <Link
-                  href={`/appointments/book?doctor_id=${doctor.id}`}
-                  className="mt-6 block rounded-xl bg-blue-600 px-4 py-3 text-center text-sm font-semibold text-white transition hover:bg-blue-700"
-                >
-                  Book Appointment
-                </Link>
+                <div className="mt-6 flex gap-3">
+                  <Link
+                    href={`/doctors/${doctor.id}`}
+                    className="flex-1 rounded-xl border border-gray-200 bg-white px-4 py-3 text-center text-sm font-semibold text-gray-700 transition hover:border-blue-200 hover:text-blue-700"
+                  >
+                    View profile
+                  </Link>
+                  <Link
+                    href={`/appointments/book?doctor_id=${doctor.id}`}
+                    className="flex-1 rounded-xl bg-blue-600 px-4 py-3 text-center text-sm font-semibold text-white transition hover:bg-blue-700"
+                  >
+                    Book now
+                  </Link>
+                </div>
               </div>
             ))}
           </div>
