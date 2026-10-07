@@ -30,6 +30,11 @@ class UserRegistration(BaseModel):
     mobile: str | None = None
     password: str
 
+# the schema for user login
+class UserLogin(BaseModel):
+    username: str
+    password: str
+
 @app.get("/")
 def root():
     return {"msg": "Welcome to sanjeevni clinic API side :]"}
@@ -65,5 +70,38 @@ def user_registration(user: UserRegistration):
             }}
 
 @app.post("/user_login/")
-def user_login(user):
-    return {"Log in ": user}
+def user_login(user: UserLogin):
+
+    with psycopg.connect(DATABASE_URL) as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT id, username, email, mobile, password_hash
+                  FROM users
+                 WHERE username=%s
+            """, (user.username, ))
+
+            cur_user = cur.fetchone()
+        conn.commit()
+
+    out = {
+        "msg": "Login Failed",
+        "username": user.username,
+        "is_exists": False,
+        "auth_success": False
+    }
+
+    if cur_user:
+        out["is_exists"] = True
+
+    stored_pass_hash = cur_user[4]
+
+    if bcrypt.checkpw(user.password.encode("utf-8"), stored_pass_hash.encode("utf-8")):
+        out["msg"] = "Login successful"
+        out["auth_success"] = True
+        out["user"] = {
+            "id": cur_user[0],
+            "username": cur_user[1],
+            "email": cur_user[2],
+            "mobile": cur_user[3],
+        }
+    return out
