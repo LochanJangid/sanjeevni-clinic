@@ -1,11 +1,16 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import Link from "next/link";
 
 type Popup = {
   type: "success" | "error";
   title: string;
   message: string;
+};
+
+type ApiError = {
+  detail?: string | { msg?: string }[];
 };
 
 export default function RegisterPage() {
@@ -29,10 +34,10 @@ export default function RegisterPage() {
     });
   };
 
-  const getErrorMessage = (data: any) => {
+  const getErrorMessage = (data: ApiError) => {
     if (Array.isArray(data.detail)) {
       return data.detail
-        .map((error: any) => error.msg)
+        .map((error) => error.msg)
         .join(", ");
     }
 
@@ -104,24 +109,27 @@ export default function RegisterPage() {
   };
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-      <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-lg">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">
-            Create account
-          </h1>
+    <main className="auth-page">
+      <div className="auth-layout">
+        <section className="auth-intro">
+          <p className="eyebrow">WELCOME TO SANJEEVNI</p>
+          <h1>Your next visit starts with one simple step.</h1>
+          <p>Create a patient account to book clinic appointments and keep visit details organized.</p>
+          <div className="auth-intro-note"><span aria-hidden="true">+</span> Your contact details stay in your account</div>
+        </section>
 
-          <p className="mt-2 text-sm text-gray-500">
-            Register for Sanjeevni Clinic
-          </p>
+      <div className="auth-card">
+        <div className="auth-card-header">
+          <h2>Create your account</h2>
+          <p>Start with your basic patient contact information.</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={handleSubmit} className="auth-form">
           {/* Username */}
           <div>
             <label
               htmlFor="username"
-              className="mb-2 block text-sm font-medium text-gray-700"
+              className="field-label"
             >
               Username
             </label>
@@ -134,7 +142,7 @@ export default function RegisterPage() {
               onChange={handleChange}
               required
               placeholder="Enter your username"
-              className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              className="field-input"
             />
           </div>
 
@@ -142,7 +150,7 @@ export default function RegisterPage() {
           <div>
             <label
               htmlFor="email"
-              className="mb-2 block text-sm font-medium text-gray-700"
+              className="field-label"
             >
               Email{" "}
               <span className="text-gray-400">
@@ -157,7 +165,7 @@ export default function RegisterPage() {
               value={form.email}
               onChange={handleChange}
               placeholder="you@example.com"
-              className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              className="field-input"
             />
           </div>
 
@@ -165,7 +173,7 @@ export default function RegisterPage() {
           <div>
             <label
               htmlFor="mobile"
-              className="mb-2 block text-sm font-medium text-gray-700"
+              className="field-label"
             >
               Mobile
             </label>
@@ -177,7 +185,7 @@ export default function RegisterPage() {
               value={form.mobile}
               onChange={handleChange}
               placeholder="9876543210"
-              className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              className="field-input"
             />
           </div>
 
@@ -185,7 +193,7 @@ export default function RegisterPage() {
           <div>
             <label
               htmlFor="password"
-              className="mb-2 block text-sm font-medium text-gray-700"
+              className="field-label"
             >
               Password
             </label>
@@ -198,7 +206,7 @@ export default function RegisterPage() {
               onChange={handleChange}
               required
               placeholder="Enter your password"
-              className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              className="field-input"
             />
           </div>
 
@@ -206,11 +214,13 @@ export default function RegisterPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-lg bg-blue-600 px-4 py-3 font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+            className="button button-primary auth-submit"
           >
             {loading ? "Creating account..." : "Create account"}
           </button>
         </form>
+        <p className="auth-switch">Already have an account? <Link href="/login">Sign in</Link></p>
+      </div>
       </div>
 
       {/* Popup */}

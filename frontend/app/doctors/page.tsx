@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 
 interface Doctor {
   id: number;
@@ -18,117 +18,86 @@ export default function DoctorsPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
+    const controller = new AbortController();
+
     async function fetchDoctors() {
       try {
-        const response = await fetch(`${API_URL}/doctors/get_doctors`);
-
-        if (!response.ok) {
-          throw new Error("Failed to fetch doctors");
-        }
+        const response = await fetch(`${API_URL}/doctors/get_doctors`, {
+          signal: controller.signal,
+        });
+        if (!response.ok) throw new Error("Doctor directory is temporarily unavailable.");
 
         const data = await response.json();
         setDoctors(Array.isArray(data) ? data : []);
-      } catch {
-        setError("Unable to load doctors");
+      } catch (problem) {
+        if (problem instanceof DOMException && problem.name === "AbortError") return;
+        setError(problem instanceof Error ? problem.message : "Unable to load the doctor directory.");
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       }
     }
 
     fetchDoctors();
+    return () => controller.abort();
   }, []);
 
-  if (loading) {
-    return (
-      <main className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="rounded-2xl border bg-white px-6 py-5 shadow-sm">
-          <p className="text-sm font-medium text-gray-600">Loading doctors...</p>
-        </div>
-      </main>
-    );
-  }
-
-  if (error) {
-    return (
-      <main className="min-h-screen flex items-center justify-center bg-gray-50 px-6">
-        <div className="max-w-md rounded-2xl border border-red-200 bg-red-50 p-6 text-center">
-          <p className="text-lg font-semibold text-red-700">Unable to load doctors</p>
-          <p className="mt-2 text-sm text-red-600">{error}</p>
-        </div>
-      </main>
-    );
-  }
-
   return (
-    <main className="min-h-screen bg-gray-50 px-6 py-12">
-      <div className="mx-auto max-w-6xl">
-        <div className="mb-10 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-          <div>
-            <p className="text-sm font-medium uppercase tracking-[0.15em] text-blue-600">Healthcare team</p>
-            <h1 className="mt-2 text-3xl font-bold text-gray-900">Our Doctors</h1>
-          </div>
-
-          <Link
-            href="/appointments"
-            className="inline-flex items-center rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:border-blue-200 hover:text-blue-700"
-          >
-            View appointments
-          </Link>
+    <main className="page-shell">
+      <div className="directory-heading">
+        <div>
+          <p className="eyebrow">SANJEEVNI CLINIC</p>
+          <h1 className="page-title">Find a doctor for your care.</h1>
+          <p className="page-lead">
+            Review the doctors currently listed with the clinic and choose an available appointment time.
+          </p>
         </div>
-
-        {doctors.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-10 text-center">
-            <p className="text-lg font-medium text-gray-700">No doctors available right now.</p>
-            <p className="mt-2 text-sm text-gray-500">Please check back later for new consultation slots.</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {doctors.map((doctor) => (
-              <div
-                key={doctor.id}
-                className="flex h-full flex-col rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
-              >
-                <div className="mb-5 flex items-center justify-between">
-                  <div className="flex h-14 w-14 items-center justify-center rounded-full bg-blue-100 text-2xl">
-                    👨‍⚕️
-                  </div>
-                  <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
-                    Available
-                  </span>
-                </div>
-
-                <div className="space-y-2">
-                  <h2 className="text-xl font-semibold text-gray-900">{doctor.name}</h2>
-                  <p className="text-sm text-gray-500">Specialty ID: {doctor.category_id}</p>
-                  <p className="text-sm text-gray-500">Consultation fee</p>
-                  <p className="text-lg font-semibold text-gray-900">₹{doctor.fees}</p>
-                </div>
-
-                <div className="mt-6 grid gap-2 text-sm text-gray-600">
-                  <p>• Flexible clinic availability</p>
-                  <p>• Follow-up support</p>
-                  <p>• Digital consultation records</p>
-                </div>
-
-                <div className="mt-6 flex gap-3">
-                  <Link
-                    href={`/doctors/${doctor.id}`}
-                    className="flex-1 rounded-xl border border-gray-200 bg-white px-4 py-3 text-center text-sm font-semibold text-gray-700 transition hover:border-blue-200 hover:text-blue-700"
-                  >
-                    View profile
-                  </Link>
-                  <Link
-                    href={`/appointments/book?doctor_id=${doctor.id}`}
-                    className="flex-1 rounded-xl bg-blue-600 px-4 py-3 text-center text-sm font-semibold text-white transition hover:bg-blue-700"
-                  >
-                    Book now
-                  </Link>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+        <Link href="/appointments" className="button button-quiet">My appointments</Link>
       </div>
+
+      {loading ? (
+        <div className="directory-state card" role="status">Loading the doctor directory…</div>
+      ) : error ? (
+        <div className="directory-state card directory-error" role="alert">
+          <h2>We couldn’t load the doctor directory.</h2>
+          <p>{error}</p>
+          <button className="button button-quiet" onClick={() => window.location.reload()}>Try again</button>
+        </div>
+      ) : doctors.length === 0 ? (
+        <div className="directory-state card">
+          <span className="empty-calendar" aria-hidden="true">+</span>
+          <h2>No doctors are listed right now.</h2>
+          <p>Please check back later or contact the clinic for assistance.</p>
+        </div>
+      ) : (
+        <div className="doctor-grid">
+          {doctors.map((doctor) => (
+            <article className="doctor-card card" key={doctor.id}>
+              <div className="doctor-card-top">
+                <span className="doctor-initials" aria-hidden="true">
+                  {doctor.name.trim().split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("")}
+                </span>
+                <span className="doctor-label">Clinic doctor</span>
+              </div>
+
+              <h2>{doctor.name}</h2>
+              <p className="doctor-specialty">Care category {doctor.category_id}</p>
+
+              <div className="doctor-fee">
+                <span>Consultation fee</span>
+                <strong>₹{doctor.fees}</strong>
+              </div>
+
+              <div className="doctor-card-actions">
+                <Link className="doctor-profile-button" href={`/doctors/${doctor.id}`}>View details</Link>
+                <Link className="doctor-book-button" href={`/appointments/book?doctor_id=${doctor.id}`}>Choose a time <span aria-hidden="true">→</span></Link>
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
+      <p className="directory-note">
+        Appointment times shown are generated from the clinic’s current scheduling rules. Availability can change before a booking is confirmed.
+      </p>
     </main>
   );
 }

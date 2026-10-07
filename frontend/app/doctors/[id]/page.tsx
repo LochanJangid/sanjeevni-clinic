@@ -46,57 +46,55 @@ function DoctorDetailContent() {
 
   if (loading) {
     return (
-      <main className="min-h-screen flex items-center justify-center bg-gray-50">
-        <p className="rounded-2xl border bg-white px-6 py-5 shadow-sm">Loading doctor profile...</p>
+      <main className="page-shell">
+        <div className="directory-state card" role="status">Loading doctor profile…</div>
       </main>
     );
   }
 
   if (error || !doctor) {
     return (
-      <main className="min-h-screen flex items-center justify-center bg-gray-50 px-6">
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-center">
-          <p className="text-lg font-semibold text-red-700">Doctor not available</p>
-          <p className="mt-2 text-sm text-red-600">{error || "Please return to the doctor list."}</p>
+      <main className="page-shell">
+        <div className="directory-state card directory-error" role="alert">
+          <h2>Doctor not available</h2>
+          <p>{error || "Please return to the doctor list."}</p>
+          <Link className="button button-quiet" href="/doctors">Back to doctors</Link>
         </div>
       </main>
     );
   }
 
   return (
-    <main className="min-h-screen bg-gray-50 px-6 py-12">
-      <div className="mx-auto max-w-4xl">
-        <Link href="/doctors" className="text-blue-600">← Back to doctors</Link>
+    <main className="page-shell">
+      <div className="doctor-detail-shell">
+        <Link href="/doctors" className="back-link">← Back to doctors</Link>
 
-        <div className="mt-6 grid gap-6 rounded-2xl border bg-white p-8 shadow-sm md:grid-cols-[1.2fr_0.8fr]">
+        <div className="doctor-profile-layout card">
           <div>
-            <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-blue-100 text-3xl">👨‍⚕️</div>
-            <p className="text-sm font-medium uppercase tracking-[0.15em] text-blue-600">Doctor profile</p>
-            <h1 className="mt-2 text-3xl font-bold text-gray-900">{doctor.name}</h1>
-
-            <div className="mt-6 space-y-3 text-gray-600">
-              <p><span className="font-medium text-gray-900">Specialty:</span> Category {doctor.category_id}</p>
-              <p><span className="font-medium text-gray-900">Consultation fee:</span> ₹{doctor.fees}</p>
-              <p><span className="font-medium text-gray-900">Availability:</span> Monday to Saturday</p>
+            <div className="doctor-detail-avatar" aria-hidden="true">
+              {doctor.name.trim().split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("")}
             </div>
+            <p className="eyebrow doctor-detail-eyebrow">DOCTOR PROFILE</p>
+            <h1 className="doctor-detail-name">{doctor.name}</h1>
 
-            <div className="mt-8 rounded-xl border border-gray-200 bg-gray-50 p-5">
-              <h2 className="text-lg font-semibold text-gray-900">About</h2>
-              <p className="mt-3 text-sm leading-6 text-gray-600">
-                Experienced medical professional providing patient-centered care, preventive guidance,
-                and follow-up support in a calm and trusted clinical environment.
-              </p>
+            <div className="doctor-detail-info">
+              <p><strong>Care category</strong><span>{doctor.category_id}</span></p>
+              <p><strong>Consultation fee</strong><span>₹{doctor.fees}</span></p>
             </div>
+            <p className="doctor-detail-note">
+              Choose a date to see the appointment times currently available for this doctor.
+              Doctor biography and qualification details have not been provided by the clinic.
+            </p>
           </div>
 
-          <div className="rounded-2xl border border-blue-100 bg-blue-50 p-5">
-            <h2 className="text-lg font-semibold text-blue-900">Consultation</h2>
-            <p className="mt-3 text-3xl font-bold text-blue-900">₹{doctor.fees}</p>
-            <p className="mt-2 text-sm text-blue-700">Includes consultation and follow-up guidance.</p>
+          <div className="doctor-detail-fee-panel">
+            <p className="eyebrow">CONSULTATION</p>
+            <p className="doctor-detail-price">₹{doctor.fees}</p>
+            <p>The listed amount is the consultation fee.</p>
 
             <Link
               href={`/appointments/book?doctor_id=${doctor.id}`}
-              className="mt-6 block rounded-xl bg-blue-600 px-4 py-3 text-center font-semibold text-white hover:bg-blue-700"
+              className="button button-primary"
             >
               Book appointment
             </Link>

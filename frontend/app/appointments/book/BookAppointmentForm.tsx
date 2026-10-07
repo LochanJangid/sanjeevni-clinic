@@ -1,110 +1,126 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { FormEvent, useEffect, useState } from "react";
+import { parseTokenClaims } from "../../../lib/auth";
+
+interface Doctor {
+  id: number;
+  name: string;
+  category_id: number;
+  fees: number;
+}
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
+function getLocalDateString() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+}
+
 export default function BookAppointmentForm() {
   const searchParams = useSearchParams();
-  const doctorId = searchParams.get("doctor_id");
+  const router = useRouter();
+  const doctorIdParam = searchParams.get("doctor_id");
+  const doctorId = Number(doctorIdParam);
 
+  const [doctor, setDoctor] = useState<Doctor | null>(null);
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
   const [slots, setSlots] = useState<string[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loadingDoctor, setLoadingDoctor] = useState(true);
+  const [loadingSlots, setLoadingSlots] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [slotError, setSlotError] = useState("");
   const [message, setMessage] = useState("");
-  const [slotsLoading, setSlotsLoading] = useState(false);
-
-  const minDate = useMemo(() => new Date().toISOString().split("T")[0], []);
-
-  function decodeJwtPayload(token: string) {
-    try {
-      const payload = token.split(".")[1];
-      if (!payload) return null;
-
-      const base64 = payload.replace(/-/g, "+").replace(/_/g, "/");
-      const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, "=");
-      return JSON.parse(atob(padded));
-    } catch {
-      return null;
-    }
-  }
+  const [bookingError, setBookingError] = useState("");
+  const [minDate, setMinDate] = useState("");
 
   useEffect(() => {
-    async function fetchAvailableSlots() {
-      if (!doctorId || !date) {
-        setSlots([]);
-        setTime("");
-        return;
-      }
+    const frame = window.requestAnimationFrame(() => setMinDate(getLocalDateString()));
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
 
+  useEffect(() => {
+    if (!Number.isSafeInteger(doctorId) || doctorId < 1) return;
+
+    const controller = new AbortController();
+    async function loadDoctor() {
       try {
-        setSlotsLoading(true);
-        const response = await fetch(
-          `${API_URL}/doctors/get_doctor_slots/${doctorId}?date=${date}`
-        );
-
-        if (!response.ok) {
-          throw new Error("Unable to load appointment slots");
-        }
-
+        const response = await fetch(`${API_URL}/doctors/get_doctor/${doctorId}`, {
+          signal: controller.signal,
+        });
         const data = await response.json();
-        setSlots(Array.isArray(data.slots) ? data.slots : []);
-        setTime("");
-      } catch {
-        setSlots([]);
-        setTime("");
+        if (!response.ok) throw new Error(data.detail || "Doctor not found.");
+        setDoctor(data);
+      } catch (error) {
+        if (!(error instanceof DOMException && error.name === "AbortError")) {
+          setBookingError(error instanceof Error ? error.message : "Unable to load doctor details.");
+        }
       } finally {
-        setSlotsLoading(false);
+        if (!controller.signal.aborted) setLoadingDoctor(false);
       }
     }
 
-    fetchAvailableSlots();
+    loadDoctor();
+    return () => controller.abort();
+  }, [doctorId]);
+
+  useEffect(() => {
+    if (!date || !doctorId) return;
+
+    const controller = new AbortController();
+    async function loadSlots() {
+      setLoadingSlots(true);
+      setSlotError("");
+      setTime("");
+      try {
+        const response = await fetch(
+          `${API_URL}/doctors/get_doctor_slots/${doctorId}?date=${encodeURIComponent(date)}`,
+          { signal: controller.signal },
+        );
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail || "Could not check available times.");
+        setSlots(Array.isArray(data.slots) ? data.slots : []);
+      } catch (error) {
+        if (!(error instanceof DOMException && error.name === "AbortError")) {
+          setSlots([]);
+          setSlotError(error instanceof Error ? error.message : "Could not check available times.");
+        }
+      } finally {
+        if (!controller.signal.aborted) setLoadingSlots(false);
+      }
+    }
+
+    loadSlots();
+    return () => controller.abort();
   }, [date, doctorId]);
 
-  async function bookAppointment() {
+  async function bookAppointment(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setBookingError("");
+    setMessage("");
+
     const token = localStorage.getItem("access_token");
-
     if (!token) {
-      setMessage("Please login before booking an appointment.");
+      setBookingError("Sign in to book your appointment.");
       return;
     }
 
-    if (!doctorId) {
-      setMessage("Doctor not selected.");
+    if (!parseTokenClaims(token)?.sub) {
+      localStorage.removeItem("access_token");
+      setBookingError("Your session is invalid. Please sign in again.");
       return;
     }
 
-    if (!date || !time) {
-      setMessage("Please select an available appointment slot.");
+    if (!doctor || !date || !time || !slots.includes(time)) {
+      setBookingError("Choose a date and an available time before continuing.");
       return;
     }
 
-    const selectedDateTime = new Date(`${date}T${time}:00`);
-    if (Number.isNaN(selectedDateTime.getTime()) || selectedDateTime <= new Date()) {
-      setMessage("Please choose a future appointment time.");
-      return;
-    }
-
+    setSubmitting(true);
     try {
-      setLoading(true);
-      setMessage("");
-
-      const tokenPayload = decodeJwtPayload(token);
-      if (!tokenPayload || !tokenPayload.sub) {
-        localStorage.removeItem("access_token");
-        setMessage("Your login session is invalid. Please log in again.");
-        return;
-      }
-
-      const userId = Number(tokenPayload.sub);
-      if (!Number.isFinite(userId)) {
-        setMessage("Unable to determine your user account.");
-        return;
-      }
-
       const response = await fetch(`${API_URL}/appointments/book`, {
         method: "POST",
         headers: {
@@ -112,111 +128,141 @@ export default function BookAppointmentForm() {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          user_id: userId,
-          doctor_id: Number(doctorId),
+          doctor_id: doctor.id,
           appointment_date: date,
           appointment_time: time,
         }),
       });
-
       const data = await response.json();
+      if (!response.ok) throw new Error(data.detail || "We could not confirm this appointment.");
 
-      if (!response.ok || !data.success) {
-        setMessage(data.msg || "Unable to book appointment.");
-        return;
+      setMessage("Your appointment request was recorded. Opening the details…");
+      const appointmentId = data.appointment?.id;
+      if (appointmentId) {
+        window.setTimeout(() => router.push(`/appointments/${appointmentId}`), 700);
       }
-
-      setMessage("Appointment booked successfully!");
-      setTime("");
     } catch (error) {
-      console.error(error);
-      setMessage("Something went wrong while booking.");
+      setBookingError(
+        error instanceof Error
+          ? error.message
+          : "We could not confirm this appointment. Please try another time.",
+      );
+      if (error instanceof Error && error.message.toLowerCase().includes("booked")) {
+        setSlots((current) => current.filter((slot) => slot !== time));
+        setTime("");
+      }
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   }
 
-  if (!doctorId) {
+  if (!doctorIdParam || !Number.isSafeInteger(doctorId) || doctorId < 1) {
     return (
-      <main className="min-h-screen flex items-center justify-center">
-        <p>Doctor not selected.</p>
+      <main className="page-shell">
+        <div className="booking-state card">
+          <h1 className="section-heading">Choose a doctor first</h1>
+          <p>Return to the doctor directory to select a clinician and see bookable times.</p>
+          <Link className="button button-primary" href="/doctors">Browse doctors</Link>
+        </div>
       </main>
     );
   }
 
   return (
-    <main className="min-h-screen bg-gray-50 px-6 py-12">
-      <div className="mx-auto max-w-xl">
-        <Link href="/doctors" className="text-blue-600">
-          ← Back to doctors
-        </Link>
+    <main className="page-shell booking-shell">
+      <Link className="back-link" href="/doctors">← Back to doctors</Link>
+      <div className="booking-layout">
+        <section>
+          <p className="eyebrow">APPOINTMENT REQUEST</p>
+          <h1 className="page-title">Choose a time for your visit.</h1>
+          <p className="page-lead">Select a date to see available appointment times. Your booking is confirmed after the clinic accepts the request.</p>
 
-        <div className="mt-6 rounded-2xl border bg-white p-8 shadow-sm">
-          <h1 className="text-2xl font-bold">Book Appointment</h1>
-          <p className="mt-2 text-gray-500">Doctor ID: {doctorId}</p>
-
-          <div className="mt-8 space-y-6">
-            <div>
-              <label className="mb-2 block font-medium">Appointment Date</label>
+          <form className="booking-card card" onSubmit={bookAppointment}>
+            <label>
+              <span className="field-label">Appointment date</span>
               <input
+                className="field-input"
                 type="date"
                 min={minDate}
                 value={date}
-                onChange={(e) => setDate(e.target.value)}
-                className="w-full rounded-xl border px-4 py-3"
+                onChange={(event) => {
+                  setDate(event.target.value);
+                  setTime("");
+                  setSlots([]);
+                  setSlotError("");
+                }}
+                required
               />
-            </div>
+            </label>
 
-            <div>
-              <label className="mb-2 block font-medium">Available Time Slots</label>
-
-              {date ? (
-                slotsLoading ? (
-                  <p className="text-sm text-gray-500">Loading available times...</p>
-                ) : slots.length > 0 ? (
-                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                    {slots.map((slot) => (
-                      <button
-                        key={slot}
-                        type="button"
-                        onClick={() => setTime(slot)}
-                        className={`rounded-xl border px-3 py-2 text-sm font-medium transition ${
-                          time === slot
-                            ? "border-blue-600 bg-blue-600 text-white"
-                            : "border-gray-200 bg-white text-gray-700 hover:border-blue-300 hover:text-blue-700"
-                        }`}
-                      >
-                        {slot}
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-4 text-sm text-gray-500">
-                    No available slots for this date. Please choose another date.
-                  </p>
-                )
+            <fieldset className="slot-fieldset">
+              <legend className="field-label">Available times</legend>
+              {!date ? (
+                <p className="booking-hint">Select a date to check available times.</p>
+              ) : loadingSlots ? (
+                <p className="booking-hint" role="status">Checking appointment availability…</p>
+              ) : slotError ? (
+                <p className="booking-error" role="alert">{slotError}</p>
+              ) : slots.length === 0 ? (
+                <p className="booking-hint">No bookable times are available on this date. Try another day.</p>
               ) : (
-                <p className="text-sm text-gray-500">Choose a date to view available slots.</p>
+                <div className="slot-grid">
+                  {slots.map((slot) => (
+                    <label className={time === slot ? "slot-option selected" : "slot-option"} key={slot}>
+                      <input
+                        type="radio"
+                        name="appointment-time"
+                        value={slot}
+                        checked={time === slot}
+                        onChange={() => setTime(slot)}
+                      />
+                      <span>{slot}</span>
+                    </label>
+                  ))}
+                </div>
               )}
-            </div>
+            </fieldset>
 
-            {time && (
-              <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-700">
-                Selected slot: <span className="font-semibold">{date} at {time}</span>
-              </div>
-            )}
+            {bookingError && <p className="booking-error" role="alert">{bookingError}</p>}
+            {message && <p className="booking-success" role="status">{message}</p>}
 
-            <button
-              onClick={bookAppointment}
-              disabled={loading || !time}
-              className="w-full rounded-xl bg-blue-600 py-3 font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {loading ? "Booking..." : "Confirm Appointment"}
+            <button className="button button-primary booking-submit" type="submit" disabled={submitting || !time || loadingSlots}>
+              {submitting ? "Confirming…" : "Confirm appointment"}
             </button>
+            <p className="booking-legal">No payment is collected on this page. Contact the clinic if you have questions about fees or payment.</p>
+          </form>
+        </section>
 
-            {message && <p className="mt-4 text-center text-sm">{message}</p>}
+        <aside className="booking-summary card">
+          <p className="eyebrow">VISIT SUMMARY</p>
+          {loadingDoctor ? (
+            <p className="booking-hint">Loading doctor details…</p>
+          ) : doctor ? (
+            <>
+              <div className="booking-doctor-avatar" aria-hidden="true">
+                {doctor.name.trim().split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("")}
+              </div>
+              <h2>{doctor.name}</h2>
+              <p className="booking-category">Care category {doctor.category_id}</p>
+              <div className="summary-divider" />
+              <div className="summary-fee">
+                <span>Consultation fee</span>
+                <strong>₹{doctor.fees}</strong>
+              </div>
+              {date && time && (
+                <div className="summary-selected-time">
+                  <span>Selected time</span>
+                  <strong>{new Date(`${date}T12:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })} · {time}</strong>
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="booking-error" role="alert">{bookingError || "Doctor not found."}</div>
+          )}
+          <div className="booking-summary-note">
+            Appointment times reflect current availability and may be booked by another patient before confirmation.
           </div>
-        </div>
+        </aside>
       </div>
     </main>
   );

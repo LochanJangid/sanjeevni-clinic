@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 type Popup = {
@@ -70,6 +71,7 @@ export default function LoginPage() {
 
       // Save JWT access token
       localStorage.setItem("access_token", data.access_token);
+      window.dispatchEvent(new Event("sanjeevni-session-change"));
 
       setPopup({
         type: "success",
@@ -83,9 +85,9 @@ export default function LoginPage() {
       });
 
       // Go to home page
-      setTimeout(() => {
-        router.push("/");
-      }, 1000);
+      window.setTimeout(() => {
+        router.push("/dashboard");
+      }, 700);
 
     } catch {
       setPopup({
@@ -103,28 +105,32 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-      <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-lg">
+    <main className="auth-page">
+      <div className="auth-layout">
+        <section className="auth-intro">
+          <p className="eyebrow">YOUR PATIENT SPACE</p>
+          <h1>Care details, a little easier to keep track of.</h1>
+          <p>Sign in to review appointments and keep your patient contact information current.</p>
+          <div className="auth-intro-note"><span aria-hidden="true">+</span> A simple place for your clinic visits</div>
+        </section>
+
+      <div className="auth-card">
 
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">
-            Welcome back
-          </h1>
+        <div className="auth-card-header">
+          <h2>Welcome back</h2>
 
-          <p className="mt-2 text-sm text-gray-500">
-            Login to Sanjeevni Clinic
-          </p>
+          <p>Sign in to your Sanjeevni Clinic account.</p>
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={handleSubmit} className="auth-form">
 
           {/* Username */}
           <div>
             <label
               htmlFor="username"
-              className="mb-2 block text-sm font-medium text-gray-700"
+              className="field-label"
             >
               Username
             </label>
@@ -137,7 +143,7 @@ export default function LoginPage() {
               onChange={handleChange}
               required
               placeholder="Enter your username"
-              className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              className="field-input"
             />
           </div>
 
@@ -145,7 +151,7 @@ export default function LoginPage() {
           <div>
             <label
               htmlFor="password"
-              className="mb-2 block text-sm font-medium text-gray-700"
+              className="field-label"
             >
               Password
             </label>
@@ -158,7 +164,7 @@ export default function LoginPage() {
               onChange={handleChange}
               required
               placeholder="Enter your password"
-              className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              className="field-input"
             />
           </div>
 
@@ -166,18 +172,20 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-lg bg-blue-600 px-4 py-3 font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+            className="button button-primary auth-submit"
           >
             {loading ? "Logging in..." : "Login"}
           </button>
 
         </form>
+        <p className="auth-switch">New to the clinic? <Link href="/registration">Create a patient account</Link></p>
+      </div>
       </div>
 
       {/* Popup */}
       {popup && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" role="presentation">
+          <div className="auth-popup" role="dialog" aria-modal="true" aria-labelledby="login-popup-title">
 
             {/* Icon */}
             <div
@@ -219,7 +227,7 @@ export default function LoginPage() {
             </div>
 
             {/* Title */}
-            <h2 className="mt-5 text-center text-xl font-semibold text-gray-900">
+            <h2 id="login-popup-title" className="mt-5 text-center text-xl font-semibold text-gray-900">
               {popup.title}
             </h2>
 

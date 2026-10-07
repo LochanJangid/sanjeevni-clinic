@@ -3,8 +3,18 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
+import { parseTokenClaims } from "../../../lib/auth";
 
 interface Appointment {
+  id: number;
+  doctor_name: string;
+  appointment_date: string;
+  appointment_time: string;
+  status: string;
+  fees: number;
+}
+
+interface AppointmentListItem {
   id: number;
   doctor_name: string;
   appointment_date: string;
@@ -30,15 +40,24 @@ function AppointmentDetailContent() {
       }
 
       try {
-        const payload = JSON.parse(atob(token.split(".")[1]));
-        const response = await fetch(`${API_URL}/appointments/user/${payload.sub}`, {
+        const claims = parseTokenClaims(token);
+        if (!claims?.sub) throw new Error("Your session is invalid. Please sign in again.");
+        const response = await fetch(`${API_URL}/appointments/user/${claims.sub}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
 
         if (!response.ok) throw new Error("Unable to fetch appointments");
 
-        const data = await response.json();
-        const match = Array.isArray(data) ? data.find((item: any) => Number(item.id) === appointmentId) : null;
+        const data: unknown = await response.json();
+        const match = Array.isArray(data)
+          ? data.find(
+              (item: unknown): item is AppointmentListItem =>
+                typeof item === "object"
+                && item !== null
+                && "id" in item
+                && Number(item.id) === appointmentId,
+            )
+          : null;
         setAppointment(match ?? null);
       } catch {
         setAppointment(null);
