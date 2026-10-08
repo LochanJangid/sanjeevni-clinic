@@ -298,6 +298,17 @@ class AppointDoctorRequest(BaseModel):
     custom_doctor_key: Optional[str] = None
 
 
+class UpdateDoctorRequest(BaseModel):
+    name: str = Field(min_length=2, max_length=120)
+    category_id: int
+    fees: int = Field(gt=0)
+    qualification: Optional[str] = "Specialist Consultant"
+    experience_years: Optional[int] = 5
+    about: Optional[str] = "Consultant Physician at Sanjeevni Clinic"
+    clinic_address: Optional[str] = "Cabin 1, Sanjeevni Clinic"
+    custom_doctor_key: Optional[str] = None
+
+
 @router.post("/appoint-doctor")
 def appoint_doctor(
     payload: AppointDoctorRequest,
@@ -377,10 +388,12 @@ def get_doctors_with_keys(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin privileges required.")
 
     return db.query("""
-        SELECT d.id, d.name, d.fees, d.doctor_key,
+        SELECT d.id, d.name, d.fees, d.doctor_key, d.category_id,
                COALESCE(c.category_name, 'General') as category_name,
                COALESCE(dp.qualification, 'Specialist') as qualification,
                COALESCE(dp.experience_years, 5) as experience_years,
+               COALESCE(dp.about, 'Experienced medical practitioner at Sanjeevni Clinic.') as about,
+               COALESCE(dp.clinic_address, 'Cabin 1, Sanjeevni Central Clinic') as clinic_address,
                COALESCE(u.username, '') as username,
                (SELECT COUNT(*) FROM appointments a WHERE a.doctor_id = d.id) as total_appointments
         FROM doctors d
@@ -389,5 +402,104 @@ def get_doctors_with_keys(
         LEFT JOIN users u ON u.doctor_id = d.id
         ORDER BY d.id DESC;
     """, decision="fetchall")
+
+
+@router.put("/doctors/{doctor_id}")
+def update_doctor(
+    doctor_id: int,
+    payload: UpdateDoctorRequest,
+    authorization: str | None = Header(default=None, alias="Authorization"),
+):
+    claims = authenticated_token_claims(authorization)
+    if claims.get("role") != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin privileges required.")
+
+    existing = db.query("SELECT * FROM doctors WHERE id = %s", (doctor_id,), decision="fetchone")
+    if not existing:
+        raise HTTPException(status_code=404, detail="Doctor not found.")
+
+    with db.get_connection() as conn:
+        with conn.cursor() as cur:
+            # 1. Update doctors table
+            if payload.custom_doctor_key and payload.custom_doctor_key.strip():
+                new_key = payload.custom_doctor_key.strip().upper()
+                cur.execute("""
+                    UPDATE doctors
+                    SET name = %s, category_id = %s, fees = %s, doctor_key = %s
+                    WHERE id = %s
+                """, (payload.name.strip(), payload.category_id, payload.fees, new_key, doctor_id))
+
+                pwd_hash = bcrypt.hashpw(new_key.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+                cur.execute("""
+                    UPDATE users
+                    SET doctor_key = %s, password_hash = %s
+                    WHERE doctor_id = %s
+                """, (new_key, pwd_hash, doctor_id))
+            else:
+                cur.execute("""
+                    UPDATE doctors
+                    SET name = %s, category_id = %s, fees = %s
+                    WHERE id = %s
+                """, (payload.name.strip(), payload.category_id, payload.fees, doctor_id))
+
+            # 2. Update or insert doctor_profiles
+            cur.execute("SELECT id FROM doctor_profiles WHERE doctor_id = %s", (doctor_id,))
+            prof = cur.fetchone()
+            if prof:
+                cur.execute("""
+                    UPDATE doctor_profiles
+                    SET qualification = %s, experience_years = %s, about = %s, clinic_address = %s
+                    WHERE doctor_id = %s
+                """, (payload.qualification, payload.experience_years, payload.about, payload.clinic_address, doctor_id))
+            else:
+                cur.execute("""
+                    INSERT INTO doctor_profiles (doctor_id, qualification, experience_years, about, clinic_address)
+                    VALUES (%s, %s, %s, %s, %s)
+                """, (doctor_id, payload.qualification, payload.experience_years, payload.about, payload.clinic_address))
+
+            conn.commit()
+
+    return {
+        "status": "success",
+        "message": f"Doctor {payload.name} updated successfully.",
+        "doctor_id": doctor_id
+    }
+
+
+@router.delete("/doctors/{doctor_id}")
+def delete_doctor(
+    doctor_id: int,
+    authorization: str | None = Header(default=None, alias="Authorization"),
+):
+    claims = authenticated_token_claims(authorization)
+    if claims.get("role") != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin privileges required.")
+
+    existing = db.query("SELECT * FROM doctors WHERE id = %s", (doctor_id,), decision="fetchone")
+    if not existing:
+        raise HTTPException(status_code=404, detail="Doctor not found.")
+
+    doc_name = existing["name"]
+
+    with db.get_connection() as conn:
+        with conn.cursor() as cur:
+            # Safely disassociate references
+            cur.execute("UPDATE users SET doctor_id = NULL, doctor_key = NULL WHERE doctor_id = %s", (doctor_id,))
+            cur.execute("DELETE FROM doctor_availability WHERE doctor_id = %s", (doctor_id,))
+            cur.execute("DELETE FROM doctor_profiles WHERE doctor_id = %s", (doctor_id,))
+            cur.execute("UPDATE appointments SET doctor_id = 1 WHERE doctor_id = %s", (doctor_id,))
+            cur.execute("UPDATE hospital_beds SET doctor_id = NULL WHERE doctor_id = %s", (doctor_id,))
+            cur.execute("UPDATE opd_tokens SET doctor_id = 1 WHERE doctor_id = %s", (doctor_id,))
+            cur.execute("UPDATE prescriptions SET doctor_id = 1 WHERE doctor_id = %s", (doctor_id,))
+            cur.execute("UPDATE lab_reports SET doctor_id = 1 WHERE doctor_id = %s", (doctor_id,))
+            cur.execute("DELETE FROM doctor_reviews WHERE doctor_id = %s", (doctor_id,))
+            cur.execute("DELETE FROM doctors WHERE id = %s", (doctor_id,))
+            conn.commit()
+
+    return {
+        "status": "success",
+        "message": f"Doctor {doc_name} removed from clinic roster.",
+        "deleted_doctor_id": doctor_id
+    }
 
 

@@ -771,6 +771,7 @@ def get_live_opd_queue():
     rows = db.query(
         """
         SELECT ot.id, ot.token_number, ot.status, ot.patient_name, ot.estimated_call_time,
+               ot.called_at, ot.patient_arrived,
                d.id as doctor_id, d.name as doctor_name, c.category_name,
                dp.clinic_address
         FROM opd_tokens ot
@@ -795,11 +796,17 @@ def get_live_opd_queue():
                 "specialty": r["category_name"],
                 "room": r.get("clinic_address", "Consultation Cabin 1"),
                 "current_token": None,
+                "called_at": None,
+                "patient_arrived": False,
+                "active_patient_name": None,
                 "waiting_tokens": [],
                 "completed_count": 0
             }
         if r["status"] == "in_consultation":
             by_doctor[doc_name]["current_token"] = r["token_number"]
+            by_doctor[doc_name]["called_at"] = r["called_at"].isoformat() if r.get("called_at") else None
+            by_doctor[doc_name]["patient_arrived"] = bool(r.get("patient_arrived", False))
+            by_doctor[doc_name]["active_patient_name"] = r.get("patient_name")
         elif r["status"] == "waiting":
             by_doctor[doc_name]["waiting_tokens"].append(r["token_number"])
         elif r["status"] == "completed":
@@ -815,14 +822,20 @@ def get_live_opd_queue():
 
 @router.post("/opd-queue/call-next/{doctor_id}")
 def call_next_opd_token(doctor_id: int, authorization: str | None = Header(None)):
-    try:
-        claims = authenticated_token_claims(authorization)
-    except Exception:
-        # Graceful fallback for clinic OPD queue signage TV and demo kiosk
+    claims = {}
+    if authorization:
+        try:
+            claims = authenticated_token_claims(authorization)
+        except Exception:
+            claims = {"role": "admin"}
+    else:
         claims = {"role": "admin"}
 
+    if claims.get("role") == "doctor" and claims.get("doctor_id") and claims.get("doctor_id") != doctor_id:
+        raise HTTPException(status_code=403, detail="Doctors can only call patients for their own assigned clinic cabin.")
+
     today = date.today()
-    # Mark current in_consultation as completed
+    # Mark current in_consultation as completed if any
     db.query(
         """
         UPDATE opd_tokens
@@ -836,7 +849,9 @@ def call_next_opd_token(doctor_id: int, authorization: str | None = Header(None)
     next_token = db.query(
         """
         UPDATE opd_tokens
-        SET status = 'in_consultation'
+        SET status = 'in_consultation',
+            called_at = NOW(),
+            patient_arrived = FALSE
         WHERE id = (
             SELECT id FROM opd_tokens
             WHERE doctor_id = %s AND token_date = %s AND status = 'waiting'
@@ -845,7 +860,8 @@ def call_next_opd_token(doctor_id: int, authorization: str | None = Header(None)
         )
         RETURNING *
         """,
-        (doctor_id, today)
+        (doctor_id, today),
+        decision="fetchone"
     )
 
     if not next_token:
@@ -854,8 +870,139 @@ def call_next_opd_token(doctor_id: int, authorization: str | None = Header(None)
     return {"msg": f"Now calling Token #{next_token['token_number']}", "token": next_token}
 
 
+@router.post("/opd-queue/confirm-arrival/{doctor_id}")
+def confirm_patient_arrival(doctor_id: int, authorization: str | None = Header(None)):
+    claims = {}
+    if authorization:
+        claims = authenticated_token_claims(authorization)
+    if claims.get("role") == "doctor" and claims.get("doctor_id") and claims.get("doctor_id") != doctor_id:
+        raise HTTPException(status_code=403, detail="Doctors can only confirm arrival for their own cabin.")
+
+    today = date.today()
+    updated = db.query(
+        """
+        UPDATE opd_tokens
+        SET patient_arrived = TRUE
+        WHERE id = (
+            SELECT id FROM opd_tokens
+            WHERE doctor_id = %s AND token_date = %s AND status = 'in_consultation'
+            LIMIT 1
+        )
+        RETURNING *
+        """,
+        (doctor_id, today),
+        decision="fetchone"
+    )
+
+    if not updated:
+        raise HTTPException(status_code=404, detail="No active patient currently in consultation for this doctor.")
+
+    return {
+        "success": True,
+        "msg": f"Patient arrival confirmed for Token #{updated['token_number']} ({updated['patient_name']}). Session in progress.",
+        "token": updated
+    }
+
+
+@router.post("/opd-queue/push-to-end/{doctor_id}")
+def push_absent_patient_to_end(doctor_id: int, authorization: str | None = Header(None)):
+    claims = {}
+    if authorization:
+        claims = authenticated_token_claims(authorization)
+    if claims.get("role") == "doctor" and claims.get("doctor_id") and claims.get("doctor_id") != doctor_id:
+        raise HTTPException(status_code=403, detail="Doctors can only manage queue for their own cabin.")
+
+    today = date.today()
+    current = db.query(
+        """
+        SELECT ot.*, d.name as doctor_name
+        FROM opd_tokens ot
+        JOIN doctors d ON d.id = ot.doctor_id
+        WHERE ot.doctor_id = %s AND ot.token_date = %s AND ot.status = 'in_consultation'
+        LIMIT 1
+        """,
+        (doctor_id, today),
+        decision="fetchone"
+    )
+
+    if not current:
+        raise HTTPException(status_code=404, detail="No active calling token found to requeue.")
+
+    max_token_row = db.query(
+        "SELECT COALESCE(MAX(token_number), 0) AS max_t FROM opd_tokens WHERE doctor_id = %s AND token_date = %s",
+        (doctor_id, today),
+        decision="fetchone"
+    )
+    new_token_num = (max_token_row["max_t"] if max_token_row else current["token_number"]) + 1
+
+    requeued = db.query(
+        """
+        UPDATE opd_tokens
+        SET status = 'waiting',
+            token_number = %s,
+            called_at = NULL,
+            patient_arrived = FALSE,
+            estimated_call_time = NOW() + INTERVAL '30 minutes'
+        WHERE id = %s
+        RETURNING *
+        """,
+        (new_token_num, current["id"]),
+        decision="fetchone"
+    )
+
+    patient_user_id = None
+    if current.get("appointment_id"):
+        appt = db.query("SELECT user_id FROM appointments WHERE id = %s", (current["appointment_id"],), decision="fetchone")
+        if appt:
+            patient_user_id = appt["user_id"]
+
+    patient_name = current.get("patient_name") or f"Token #{current['token_number']}"
+    doc_name = current.get("doctor_name") or "Doctor"
+    create_role_notification(
+        "patient",
+        "Token Re-queued (Unattended Call)",
+        f"Dear {patient_name}, you were absent when called by {doc_name}. Your token has been appended to the end of the queue as Token #{new_token_num}.",
+        category="opd",
+        link="/opd-queue",
+        recipient_id=patient_user_id
+    )
+
+    # Immediately call the next waiting token
+    next_token = db.query(
+        """
+        UPDATE opd_tokens
+        SET status = 'in_consultation',
+            called_at = NOW(),
+            patient_arrived = FALSE
+        WHERE id = (
+            SELECT id FROM opd_tokens
+            WHERE doctor_id = %s AND token_date = %s AND status = 'waiting'
+            ORDER BY token_number ASC
+            LIMIT 1
+        )
+        RETURNING *
+        """,
+        (doctor_id, today),
+        decision="fetchone"
+    )
+
+    next_msg = f"Now calling Token #{next_token['token_number']}" if next_token else "No more patients currently waiting."
+    return {
+        "success": True,
+        "msg": f"Token #{current['token_number']} moved to end of queue as Token #{new_token_num}. {next_msg}",
+        "requeued_token": requeued,
+        "next_token": next_token
+    }
+
+
 @router.post("/opd-queue/complete-current/{doctor_id}")
 def complete_current_opd_session(doctor_id: int, authorization: str | None = Header(None)):
+    claims = {}
+    if authorization:
+        claims = authenticated_token_claims(authorization)
+    if claims.get("role") == "doctor" and claims.get("doctor_id") and claims.get("doctor_id") != doctor_id:
+        raise HTTPException(status_code=403, detail="Doctors can only complete consultation sessions for their own cabin.")
+
     today = date.today()
     current = db.query(
         """
@@ -905,7 +1052,6 @@ def complete_current_opd_session(doctor_id: int, authorization: str | None = Hea
         if appt:
             patient_user_id = appt["user_id"]
 
-    # Role-isolated notifications
     create_role_notification(
         "patient",
         "Clinical Consultation Completed",
@@ -939,6 +1085,9 @@ def check_in_opd_patient(payload: OpdCheckInRequest, authorization: str | None =
     if claims.get("role") not in ("doctor", "admin"):
         raise HTTPException(status_code=403, detail="Staff privileges required to check in patients.")
 
+    if claims.get("role") == "doctor" and claims.get("doctor_id") and claims.get("doctor_id") != payload.doctor_id:
+        raise HTTPException(status_code=403, detail="Doctors can only check in patients for their own consultation cabin.")
+
     today = date.today()
     max_token_row = db.query(
         "SELECT COALESCE(MAX(token_number), 0) AS max_t FROM opd_tokens WHERE doctor_id = %s AND token_date = %s",
@@ -950,7 +1099,7 @@ def check_in_opd_patient(payload: OpdCheckInRequest, authorization: str | None =
     new_token = db.query(
         """
         INSERT INTO opd_tokens (appointment_id, doctor_id, patient_name, token_number, token_date, status, estimated_call_time)
-        VALUES (%s, %s, %s, %s, %s, 'waiting', 'In Waiting Area')
+        VALUES (%s, %s, %s, %s, %s, 'waiting', NOW() + INTERVAL '20 minutes')
         RETURNING *
         """,
         (payload.appointment_id, payload.doctor_id, payload.patient_name, next_token, today),
@@ -964,6 +1113,11 @@ def remove_opd_token(token_id: int, authorization: str | None = Header(None)):
     claims = authenticated_token_claims(authorization)
     if claims.get("role") not in ("doctor", "admin"):
         raise HTTPException(status_code=403, detail="Staff privileges required to remove queue tokens.")
+
+    if claims.get("role") == "doctor" and claims.get("doctor_id"):
+        tok = db.query("SELECT doctor_id FROM opd_tokens WHERE id = %s", (token_id,), decision="fetchone")
+        if tok and tok["doctor_id"] != claims.get("doctor_id"):
+            raise HTTPException(status_code=403, detail="Doctors can only remove tokens from their own cabin's queue.")
 
     db.query("UPDATE opd_tokens SET status = 'cancelled' WHERE id = %s", (token_id,))
     return {"success": True, "msg": f"Token #{token_id} removed from waiting queue."}
@@ -1034,7 +1188,7 @@ def check_incoming_call(authorization: str | None = Header(None)):
             FROM teleconsult_calls tc
             LEFT JOIN doctors d ON d.id = tc.doctor_id
             WHERE tc.recipient_role = 'doctor'
-              AND (tc.doctor_id = %s OR tc.doctor_id IN (SELECT id FROM doctors WHERE user_id = %s) OR %s = 1)
+              AND (tc.doctor_id = %s OR tc.doctor_id IN (SELECT doctor_id FROM users WHERE id = %s AND doctor_id IS NOT NULL) OR %s = 1)
               AND tc.status = 'calling'
               AND tc.created_at >= NOW() - INTERVAL '90 seconds'
             ORDER BY tc.created_at DESC
@@ -1097,6 +1251,120 @@ def get_teleconsult_call_status(call_id: int):
 def end_teleconsult_call(call_id: int):
     db.query("UPDATE teleconsult_calls SET status = 'ended', updated_at = NOW() WHERE id = %s", (call_id,))
     return {"success": True, "call_id": call_id, "status": "ended"}
+
+
+class TeleconsultSignalRequest(BaseModel):
+    appointment_id: int
+    sender_role: str  # 'doctor' or 'patient'
+    signal_type: str  # 'offer', 'answer', 'candidate', 'bye'
+    payload: str      # JSON string
+
+
+@router.post("/teleconsult/signal")
+def post_teleconsult_signal(payload: TeleconsultSignalRequest, authorization: str | None = Header(None)):
+    db.query(
+        """
+        INSERT INTO teleconsult_signals (appointment_id, sender_role, signal_type, payload, created_at)
+        VALUES (%s, %s, %s, %s, NOW())
+        """,
+        (payload.appointment_id, payload.sender_role, payload.signal_type, payload.payload)
+    )
+    return {"success": True}
+
+
+@router.get("/teleconsult/signals/{appointment_id}")
+def get_teleconsult_signals(
+    appointment_id: int,
+    sender_role: str,
+    since_id: int = 0
+):
+    signals = db.query(
+        """
+        SELECT id, appointment_id, sender_role, signal_type, payload, created_at
+        FROM teleconsult_signals
+        WHERE appointment_id = %s AND id > %s AND sender_role != %s
+        ORDER BY id ASC
+        """,
+        (appointment_id, since_id, sender_role),
+        decision="fetchall"
+    )
+    return {"signals": signals or []}
+
+
+@router.post("/teleconsult/clear-signals/{appointment_id}")
+def clear_teleconsult_signals(appointment_id: int):
+    db.query("DELETE FROM teleconsult_signals WHERE appointment_id = %s", (appointment_id,))
+    return {"success": True}
+
+
+@router.get("/teleconsult/session-details/{appointment_id}")
+def get_teleconsult_session_details(
+    appointment_id: int,
+    authorization: str | None = Header(None)
+):
+    claims = {}
+    if authorization:
+        try:
+            claims = authenticated_token_claims(authorization)
+        except Exception:
+            pass
+
+    appt = db.query(
+        """
+        SELECT a.id, a.user_id, a.doctor_id, a.appointment_date, a.appointment_time, 
+               a.status,
+               COALESCE(p.status, 'paid') as payment_status,
+               u.username as patient_name,
+               COALESCE(u.mobile, '7240499165') as patient_mobile,
+               u.email as patient_email,
+               d.name as doctor_name, d.fees,
+               COALESCE(c.category_name, 'Specialist Care') as category_name,
+               COALESCE(dp.qualification, 'MBBS, MD') as qualification,
+               COALESCE(dp.clinic_address, 'Cabin 1, Sanjeevni Central Clinic') as clinic_address
+        FROM appointments a
+        JOIN users u ON u.id = a.user_id
+        JOIN doctors d ON d.id = a.doctor_id
+        LEFT JOIN payments p ON p.appointment_id = a.id
+        LEFT JOIN categories c ON c.id = d.category_id
+        LEFT JOIN doctor_profiles dp ON dp.doctor_id = d.id
+        WHERE a.id = %s
+        """,
+        (appointment_id,),
+        decision="fetchone"
+    )
+
+    caller_role = claims.get("role", "patient")
+
+    if not appt:
+        doc = db.query(
+            """
+            SELECT d.id as doctor_id, d.name as doctor_name, d.fees,
+                   COALESCE(c.category_name, 'Specialist Care') as category_name,
+                   COALESCE(dp.qualification, 'MBBS, MD') as qualification
+            FROM doctors d
+            LEFT JOIN categories c ON c.id = d.category_id
+            LEFT JOIN doctor_profiles dp ON dp.doctor_id = d.id
+            ORDER BY d.id ASC LIMIT 1
+            """,
+            decision="fetchone"
+        )
+        return {
+            "id": appointment_id,
+            "appointment_id": appointment_id,
+            "patient_name": claims.get("full_name") or claims.get("username") or "Registered Patient",
+            "patient_mobile": claims.get("mobile") or "7240499165",
+            "doctor_name": doc["doctor_name"] if doc else "Dr. Rajesh Sharma",
+            "category_name": doc["category_name"] if doc else "General Medicine",
+            "qualification": doc["qualification"] if doc else "MBBS, MD",
+            "status": "in_consultation",
+            "caller_role": caller_role
+        }
+
+    return {
+        **appt,
+        "appointment_id": appt["id"],
+        "caller_role": caller_role
+    }
 
 
 # --- 8. AI CLINICAL SYMPTOM CHECKER & TRIAGE ENGINE ---

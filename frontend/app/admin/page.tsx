@@ -25,7 +25,9 @@ import {
   Check,
   Sparkles,
   Lock,
-  ExternalLink
+  ExternalLink,
+  Pencil,
+  Trash2
 } from "lucide-react";
 import { getAuthToken, parseTokenClaims } from "../../lib/auth";
 import { getStoredHospitalName } from "../../lib/hospital";
@@ -62,9 +64,12 @@ interface DoctorWithKey {
   name: string;
   fees: number;
   doctor_key: string;
+  category_id?: number;
   category_name: string;
   qualification: string;
   experience_years: number;
+  about?: string;
+  clinic_address?: string;
   username: string;
   total_appointments: number;
 }
@@ -98,6 +103,19 @@ export default function AdminPage() {
   const [docAddr, setDocAddr] = useState("Sanjeevni Central Clinic");
   const [customKey, setCustomKey] = useState("");
   const [savingDoctor, setSavingDoctor] = useState(false);
+
+  // Edit Doctor Modal State
+  const [editingDoctor, setEditingDoctor] = useState<DoctorWithKey | null>(null);
+  const [editDocName, setEditDocName] = useState("");
+  const [editDocCatId, setEditDocCatId] = useState(1);
+  const [editDocFees, setEditDocFees] = useState(600);
+  const [editDocQual, setEditDocQual] = useState("");
+  const [editDocExp, setEditDocExp] = useState(5);
+  const [editDocAbout, setEditDocAbout] = useState("");
+  const [editDocAddr, setEditDocAddr] = useState("");
+  const [editDocCustomKey, setEditDocCustomKey] = useState("");
+  const [updatingDoctor, setUpdatingDoctor] = useState(false);
+  const [deletingDocId, setDeletingDocId] = useState<number | null>(null);
 
   // New Doctor Created Success Modal
   const [newDoctorCreated, setNewDoctorCreated] = useState<{
@@ -241,6 +259,85 @@ export default function AdminPage() {
     navigator.clipboard.writeText(key);
     setCopiedKey(key);
     setTimeout(() => setCopiedKey(null), 2500);
+  }
+
+  function handleStartEditDoctor(doc: DoctorWithKey) {
+    setEditingDoctor(doc);
+    setEditDocName(doc.name);
+    setEditDocCatId(doc.category_id || 1);
+    setEditDocFees(doc.fees);
+    setEditDocQual(doc.qualification || "MBBS, MD");
+    setEditDocExp(doc.experience_years || 5);
+    setEditDocAbout(doc.about || "");
+    setEditDocAddr(doc.clinic_address || "Cabin 1, Sanjeevni Central Clinic");
+    setEditDocCustomKey(doc.doctor_key || "");
+  }
+
+  async function handleUpdateDoctorSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editingDoctor) return;
+    setUpdatingDoctor(true);
+    const token = getAuthToken();
+
+    try {
+      const res = await fetch(`${API_URL}/admin/doctors/${editingDoctor.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          name: editDocName.trim(),
+          category_id: Number(editDocCatId),
+          fees: Number(editDocFees),
+          qualification: editDocQual.trim() || undefined,
+          experience_years: Number(editDocExp),
+          about: editDocAbout.trim() || undefined,
+          clinic_address: editDocAddr.trim() || undefined,
+          custom_doctor_key: editDocCustomKey.trim() || undefined,
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || "Failed to update doctor profile.");
+      }
+
+      setEditingDoctor(null);
+      await loadAdminData();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Error updating doctor.");
+    } finally {
+      setUpdatingDoctor(false);
+    }
+  }
+
+  async function handleDeleteDoctor(doc: DoctorWithKey) {
+    if (!confirm(`Are you sure you want to remove Dr. ${doc.name} (Access Key: ${doc.doctor_key}) from Sanjeevni Clinic? This will decommission their login credentials.`)) {
+      return;
+    }
+    setDeletingDocId(doc.id);
+    const token = getAuthToken();
+
+    try {
+      const res = await fetch(`${API_URL}/admin/doctors/${doc.id}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || "Failed to delete doctor.");
+      }
+
+      await loadAdminData();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Error deleting doctor.");
+    } finally {
+      setDeletingDocId(null);
+    }
   }
 
   return (
@@ -427,23 +524,45 @@ export default function AdminPage() {
                           </div>
                         </td>
                         <td className="py-3.5 px-3 text-right">
-                          <button
-                            type="button"
-                            onClick={() => copyKey(doc.doctor_key)}
-                            className="px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 hover:text-gray-900 font-sans text-xs font-semibold transition inline-flex items-center gap-1.5 cursor-pointer"
-                          >
-                            {copiedKey === doc.doctor_key ? (
-                              <>
-                                <Check className="w-3.5 h-3.5 text-[#0D9488]" />
-                                <span className="text-[#0D9488]">Copied!</span>
-                              </>
-                            ) : (
-                              <>
-                                <Copy className="w-3.5 h-3.5 text-gray-500" />
-                                <span>Copy Key</span>
-                              </>
-                            )}
-                          </button>
+                          <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                            <button
+                              type="button"
+                              onClick={() => copyKey(doc.doctor_key)}
+                              className="px-2.5 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 hover:text-gray-900 font-sans text-xs font-semibold transition inline-flex items-center gap-1 cursor-pointer"
+                              title="Copy Login Key"
+                            >
+                              {copiedKey === doc.doctor_key ? (
+                                <>
+                                  <Check className="w-3.5 h-3.5 text-[#0D9488]" />
+                                  <span className="text-[#0D9488]">Copied</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Copy className="w-3.5 h-3.5 text-gray-500" />
+                                  <span>Key</span>
+                                </>
+                              )}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleStartEditDoctor(doc)}
+                              className="px-2.5 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-[#1E3A8A] border border-blue-200 font-sans text-xs font-semibold transition inline-flex items-center gap-1 cursor-pointer"
+                              title="Edit Doctor Details & Fees"
+                            >
+                              <Pencil className="w-3.5 h-3.5 text-[#1E3A8A]" />
+                              <span>Edit</span>
+                            </button>
+                            <button
+                              type="button"
+                              disabled={deletingDocId === doc.id}
+                              onClick={() => handleDeleteDoctor(doc)}
+                              className="px-2.5 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-sans text-xs font-semibold transition inline-flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                              title="Decommission & Remove Doctor"
+                            >
+                              <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                              <span>{deletingDocId === doc.id ? "Removing…" : "Remove"}</span>
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -785,6 +904,167 @@ export default function AdminPage() {
               >
                 Close &amp; Return to Dashboard
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* MODAL 3: EDIT DOCTOR MODAL */}
+        {editingDoctor && (
+          <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+            <div className="p-6 sm:p-8 bg-white max-w-xl w-full rounded-2xl shadow-xl border border-gray-200 my-auto max-h-[90vh] overflow-y-auto space-y-4">
+              <div className="flex items-start justify-between border-b border-gray-200 pb-3">
+                <div>
+                  <span className="px-2.5 py-0.5 rounded-full bg-blue-50 text-[#1E3A8A] border border-blue-200 text-[10px] font-bold mb-1 inline-flex">
+                    DOCTOR PROFILE MANAGEMENT
+                  </span>
+                  <h2 className="text-xl font-bold text-[#1E3A8A]">Edit Doctor #{editingDoctor.id}</h2>
+                  <p className="text-xs text-[#4B5563]">
+                    Update doctor specialty, consultation fees, credentials, and access keys.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setEditingDoctor(null)}
+                  className="w-8 h-8 rounded-xl bg-gray-100 text-gray-500 hover:text-gray-900 flex items-center justify-center transition"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <form onSubmit={handleUpdateDoctorSubmit} className="space-y-4 pt-1">
+                <div>
+                  <label className="block text-xs font-bold text-[#1E3A8A] mb-1">
+                    Doctor Full Name *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editDocName}
+                    onChange={(e) => setEditDocName(e.target.value)}
+                    className="w-full text-xs p-3 bg-white border border-gray-300 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:border-[#0D9488] focus:ring-1 focus:ring-[#0D9488] transition"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-[#1E3A8A] mb-1">
+                    Specialty Department *
+                  </label>
+                  <select
+                    value={editDocCatId}
+                    onChange={(e) => setEditDocCatId(Number(e.target.value))}
+                    className="w-full text-xs p-3 bg-white border border-gray-300 rounded-xl text-gray-900 focus:outline-none focus:border-[#0D9488] transition"
+                  >
+                    {categories.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.category_name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-[#1E3A8A] mb-1">
+                      Consultation Fee (₹) *
+                    </label>
+                    <input
+                      type="number"
+                      required
+                      min={100}
+                      value={editDocFees}
+                      onChange={(e) => setEditDocFees(Number(e.target.value))}
+                      className="w-full text-xs p-3 bg-white border border-gray-300 rounded-xl text-gray-900 focus:outline-none focus:border-[#0D9488]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-[#1E3A8A] mb-1">
+                      Experience (Years)
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={editDocExp}
+                      onChange={(e) => setEditDocExp(Number(e.target.value))}
+                      className="w-full text-xs p-3 bg-white border border-gray-300 rounded-xl text-gray-900 focus:outline-none focus:border-[#0D9488]"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-[#1E3A8A] mb-1">
+                    Qualification &amp; Degrees
+                  </label>
+                  <input
+                    type="text"
+                    value={editDocQual}
+                    onChange={(e) => setEditDocQual(e.target.value)}
+                    className="w-full text-xs p-3 bg-white border border-gray-300 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:border-[#0D9488]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-[#1E3A8A] mb-1">
+                    Chamber / Cabin Address
+                  </label>
+                  <input
+                    type="text"
+                    value={editDocAddr}
+                    onChange={(e) => setEditDocAddr(e.target.value)}
+                    className="w-full text-xs p-3 bg-white border border-gray-300 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:border-[#0D9488]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-[#1E3A8A] mb-1">
+                    Doctor Access Key (Login Key)
+                  </label>
+                  <input
+                    type="text"
+                    value={editDocCustomKey}
+                    onChange={(e) => setEditDocCustomKey(e.target.value)}
+                    className="w-full text-xs p-3 bg-white border border-gray-300 rounded-xl text-[#0D9488] font-mono font-bold focus:outline-none focus:border-[#0D9488]"
+                  />
+                  <span className="text-[10px] text-gray-400 block mt-1">
+                    Updating the key will update the doctor&apos;s active login credentials.
+                  </span>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-[#1E3A8A] mb-1">
+                    Physician Bio / About (Optional)
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={editDocAbout}
+                    onChange={(e) => setEditDocAbout(e.target.value)}
+                    className="w-full text-xs p-3 bg-white border border-gray-300 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:border-[#0D9488]"
+                  />
+                </div>
+
+                <div className="flex items-center justify-end gap-3 pt-3 border-t border-gray-200">
+                  <button
+                    type="button"
+                    onClick={() => setEditingDoctor(null)}
+                    className="px-4 py-2.5 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50 text-xs font-bold transition cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={updatingDoctor}
+                    className="px-5 py-2.5 rounded-xl bg-[#0D9488] hover:bg-[#0F766E] text-white text-xs font-bold transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50 shadow-sm"
+                  >
+                    {updatingDoctor ? (
+                      <span>Saving Changes…</span>
+                    ) : (
+                      <>
+                        <Check className="w-4 h-4 text-white" />
+                        <span>Update Doctor Profile</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}
