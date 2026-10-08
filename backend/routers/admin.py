@@ -130,3 +130,142 @@ def update_appointment_status(
         raise HTTPException(status_code=404, detail="Appointment not found.")
 
     return {"success": True, "appointment": updated}
+
+
+# ==========================================
+# CASH DRAWER & DAILY RECONCILIATION
+# ==========================================
+
+class CloseCashDrawerRequest(BaseModel):
+    actual_cash_counted: float
+    closing_notes: Optional[str] = "End of day cash counter verification"
+
+
+@router.get("/cash-drawer/today")
+def get_today_cash_drawer(
+    authorization: str | None = Header(default=None, alias="Authorization"),
+):
+    claims = authenticated_token_claims(authorization)
+    if claims.get("role") not in ("admin", "doctor"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Staff access required.")
+
+    # Calculate actual collections today across appointments, deposits, pharmacy
+    payments_today = db.query("""
+        SELECT 
+            COALESCE(SUM(CASE WHEN LOWER(payment_method) = 'cash' THEN amount ELSE 0 END), 0) AS cash_coll,
+            COALESCE(SUM(CASE WHEN LOWER(payment_method) = 'upi' THEN amount ELSE 0 END), 0) AS upi_coll,
+            COALESCE(SUM(CASE WHEN LOWER(payment_method) = 'card' THEN amount ELSE 0 END), 0) AS card_coll,
+            COALESCE(SUM(CASE WHEN LOWER(payment_method) = 'phonepe' THEN amount ELSE 0 END), 0) AS phonepe_coll
+        FROM payments
+        WHERE payment_date = CURRENT_DATE AND status = 'paid';
+    """) or {"cash_coll": 0, "upi_coll": 0, "card_coll": 0, "phonepe_coll": 0}
+
+    session = db.query("SELECT * FROM cash_drawer_sessions WHERE session_date = CURRENT_DATE LIMIT 1;")
+    if not session:
+        # Create session for today
+        opening = 2000.00
+        cash_coll = float(payments_today.get("cash_coll", 0))
+        upi_coll = float(payments_today.get("upi_coll", 0))
+        card_coll = float(payments_today.get("card_coll", 0))
+        phonepe_coll = float(payments_today.get("phonepe_coll", 0))
+        expected = opening + cash_coll
+
+        session = db.query("""
+            INSERT INTO cash_drawer_sessions (
+                session_date, cashier_id, cashier_name, opening_cash,
+                cash_collected, upi_collected, card_collected, phonepe_collected,
+                expected_cash, status
+            ) VALUES (
+                CURRENT_DATE, %s, %s, %s, %s, %s, %s, %s, %s, 'open'
+            ) RETURNING *;
+        """, (
+            str(claims.get("user_id", "admin-1")), claims.get("username", "Desk Cashier"),
+            opening, cash_coll, upi_coll, card_coll, phonepe_coll, expected
+        ), decision="fetchone")
+
+    return {"status": "success", "session": session}
+
+
+@router.post("/cash-drawer/close")
+def close_cash_drawer(
+    payload: CloseCashDrawerRequest,
+    authorization: str | None = Header(default=None, alias="Authorization"),
+):
+    claims = authenticated_token_claims(authorization)
+    if claims.get("role") not in ("admin", "doctor"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Staff access required.")
+
+    session = db.query("SELECT * FROM cash_drawer_sessions WHERE session_date = CURRENT_DATE LIMIT 1;")
+    if not session:
+        raise HTTPException(status_code=404, detail="No active cash drawer session found for today.")
+
+    expected = float(session.get("expected_cash", 0.0))
+    discrepancy = round(payload.actual_cash_counted - expected, 2)
+
+    updated = db.query("""
+        UPDATE cash_drawer_sessions
+        SET status = 'closed',
+            actual_cash_counted = %s,
+            discrepancy = %s,
+            closing_time = NOW(),
+            closing_notes = %s
+        WHERE id = %s
+        RETURNING *;
+    """, (payload.actual_cash_counted, discrepancy, payload.closing_notes, session["id"]), decision="fetchone")
+
+    return {
+        "status": "success",
+        "message": f"Cash drawer closed. Discrepancy: ₹{discrepancy:.2f} ({'Balanced' if discrepancy == 0 else 'Shortage/Excess'})",
+        "session": updated
+    }
+
+
+# ==========================================
+# EXCEL / CSV BULK IMPORT
+# ==========================================
+
+class BulkMedicineImportItem(BaseModel):
+    name: str
+    generic_name: Optional[str] = ""
+    category: Optional[str] = "General"
+    dosage_form: Optional[str] = "Tablet"
+    strength: Optional[str] = ""
+    price: float
+    stock_quantity: int = 50
+    hsn_code: Optional[str] = "3004"
+    rack_location: Optional[str] = "Rack-A1"
+
+
+class BulkMedicineImportRequest(BaseModel):
+    medicines: list[BulkMedicineImportItem]
+
+
+@router.post("/import/medicines")
+def import_medicines_csv(
+    payload: BulkMedicineImportRequest,
+    authorization: str | None = Header(default=None, alias="Authorization"),
+):
+    claims = authenticated_token_claims(authorization)
+    if claims.get("role") not in ("admin", "doctor"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Staff privileges required.")
+
+    imported_count = 0
+    for med in payload.medicines:
+        db.query("""
+            INSERT INTO pharmacy_medicines (
+                name, generic_name, category, dosage_form, strength,
+                price, stock_quantity, hsn_code, rack_location
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT DO NOTHING;
+        """, (
+            med.name, med.generic_name, med.category, med.dosage_form,
+            med.strength, med.price, med.stock_quantity, med.hsn_code, med.rack_location
+        ))
+        imported_count += 1
+
+    return {
+        "status": "success",
+        "message": f"Successfully imported {imported_count} medicines into pharmacy stock.",
+        "imported_count": imported_count
+    }
+

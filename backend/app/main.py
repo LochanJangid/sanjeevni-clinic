@@ -11,6 +11,10 @@ from routers import prescriptions
 from routers import billing
 from routers import admin
 from routers import clinical
+from routers import ipd
+from routers import pharmacy_lab
+from routers import dpdp
+from routers import abdm
 from database.connection import Database
 
 app = FastAPI(title="Sanjeevni Clinic SaaS API", version="2.0.0")
@@ -33,6 +37,10 @@ app.include_router(prescriptions.router)
 app.include_router(billing.router)
 app.include_router(admin.router)
 app.include_router(clinical.router)
+app.include_router(ipd.router)
+app.include_router(pharmacy_lab.router)
+app.include_router(dpdp.router)
+app.include_router(abdm.router)
 
 ## ROOT ----------------------
 @app.get("/")
