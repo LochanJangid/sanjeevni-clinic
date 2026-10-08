@@ -1,922 +1,812 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
 import {
   Activity,
+  AlertTriangle,
   ArrowRight,
-  Award,
   Bed,
   Building2,
   Calendar,
-  Check,
   CheckCircle2,
-  ChevronDown,
-  ChevronRight,
   Clock,
-  Code2,
-  Cpu,
-  CreditCard,
-  Edit3,
-  ExternalLink,
-  Eye,
-  FileCheck,
   FileText,
   FlaskConical,
   HeartHandshake,
-  HelpCircle,
-  Layers,
-  Lock,
-  Mail,
-  MessageCircle,
-  Phone,
+  MapPin,
+  MessageSquare,
   PhoneCall,
-  Pill,
-  Play,
-  QrCode,
   ShieldCheck,
-  Smartphone,
   Sparkles,
   Stethoscope,
-  TrendingUp,
-  Truck,
   Tv,
-  UserCheck,
   Users,
+  CreditCard,
   Video,
-  X,
-  Zap,
+  UserCheck,
+  ChevronRight,
+  ClipboardList,
+  LogIn,
+  KeyRound,
+  LayoutDashboard,
+  Pill,
 } from "lucide-react";
-import { loginAsDemoRole } from "../lib/auth";
-import { getStoredHospitalName, setStoredHospitalName } from "../lib/hospital";
-import { openDemoModal } from "../components/LaunchLiveDemoModal";
+import { getAuthClaims, TokenClaims } from "../lib/auth";
 
-export default function SellingSitePage() {
-  const router = useRouter();
+export default function SanjeevniClinicHomePage() {
+  const [claims, setClaims] = useState<TokenClaims | null>(null);
+  const [mounted, setMounted] = useState<boolean>(false);
+  const [selectedDepartment, setSelectedDepartment] = useState<number>(1);
 
-  // Interactive ROI Calculator State
-  const [dailyPatients, setDailyPatients] = useState<number>(60);
-  const [inpatientBeds, setInpatientBeds] = useState<number>(20);
+  useEffect(() => {
+    setMounted(true);
+    const updateClaims = () => {
+      setClaims(getAuthClaims());
+    };
+    updateClaims();
+    window.addEventListener("storage", updateClaims);
+    window.addEventListener("sanjeevni-session-change", updateClaims);
+    return () => {
+      window.removeEventListener("storage", updateClaims);
+      window.removeEventListener("sanjeevni-session-change", updateClaims);
+    };
+  }, []);
 
-  // FAQ Accordion State
-  const [openFaq, setOpenFaq] = useState<number | null>(null);
-
-  function handleOpenDemoModal(preferredRole?: "patient" | "doctor" | "admin") {
-    openDemoModal(preferredRole || "admin");
-  }
-
-  // Calculate Hospital ROI metrics
-  const monthlyPatients = dailyPatients * 26; // 26 working days
-  const billingDiscrepanciesSaved = Math.round(monthlyPatients * 45); // Avg ₹45 leakage prevented per consult
-  const staffHoursSaved = Math.round(dailyPatients * 0.15 * 26); // Queue and slip handling time
-  const estimatedRevenue = monthlyPatients * 500;
-
-  const faqs = [
+  const departments = [
     {
-      q: "How does the PhonePe Merchant Dynamic QR integration work?",
-      a: "The reception counter or patient scans a dynamically generated UPI QR code that embeds the doctor's consultation fee, patient UHID, and appointment ID. Payment settles directly into the hospital or doctor's bank account with 0% platform intermediary commission. An official GST-compliant tax receipt (SJ-REC) is instantly generated.",
+      id: 1,
+      name: "Cardiology & Vascular Sciences",
+      doctor: "Dr. Rajesh Sharma",
+      degrees: "MD, DM (Cardiology), FACC",
+      cabin: "Cabin 01 · Ground Floor",
+      fee: "₹800",
+      hours: "09:00 AM – 01:00 PM & 05:00 PM – 08:00 PM",
+      description:
+        "Comprehensive cardiac evaluation, 12-lead ECG, 2D Echocardiography, lipid management, and hypertension control protocols.",
+      tag: "Chief of Cardiology",
     },
     {
-      q: "Can this system run on local hospital computers without high-speed internet?",
-      a: "Yes. The entire operating system is architected with a decoupled FastAPI + PostgreSQL backend that can run on an on-premise local mini-server inside the hospital intranet. OPD TV chimes, doctor chamber calls, and patient queue tokens operate seamlessly over local Wi-Fi / LAN even if the internet goes down.",
+      id: 2,
+      name: "Dermatology & Aesthetic Medicine",
+      doctor: "Dr. Priya Verma",
+      degrees: "MD (Dermatology, Venereology & Leprosy)",
+      cabin: "Cabin 02 · First Floor",
+      fee: "₹650",
+      hours: "10:00 AM – 02:00 PM & 05:00 PM – 07:30 PM",
+      description:
+        "Evidence-based clinical dermatology, allergy screening, acne therapeutics, pediatric dermatology, and cutaneous lasers.",
+      tag: "Consultant Dermatologist",
     },
     {
-      q: "What hardware is required for the Live OPD Waiting Room TV display?",
-      a: "Any smart TV, HDMI monitor, or standard LED television equipped with an inexpensive Android TV stick or Fire TV stick. Simply open the browser to the `/opd-queue` URL in fullscreen mode. It features an automated two-tone chime (Web Audio API) and token marquee with zero external hardware encoders required.",
+      id: 3,
+      name: "General Medicine & Diabetology",
+      doctor: "Dr. Amit Gupta",
+      degrees: "MBBS, MD (Internal Medicine)",
+      cabin: "Cabin 03 · Ground Floor",
+      fee: "₹500",
+      hours: "09:00 AM – 01:00 PM & 04:30 PM – 08:00 PM",
+      description:
+        "Acute viral fever management, diabetes glycemic optimization, geriatric health assessments, and comprehensive preventive health checkups.",
+      tag: "Senior Physician",
     },
     {
-      q: "How does the system protect clinical records under India's DPDP Act 2023?",
-      a: "All patient demographic updates, prescription access, and appointment logs are recorded in immutable append-only audit trails. Patient data cannot be deleted without an authorized admin audit entry. Built-in consent logging and ABHA sandbox readiness ensure full regulatory compliance.",
+      id: 4,
+      name: "Neurology & Neuro-Physiology",
+      doctor: "Dr. Anita Roy",
+      degrees: "MD, DM (Neurology)",
+      cabin: "Cabin 04 · Second Floor",
+      fee: "₹900",
+      hours: "10:30 AM – 02:30 PM",
+      description:
+        "Specialized diagnosis and treatment for migraines, epilepsy, neuropathies, stroke rehabilitation, and movement disorders.",
+      tag: "Consultant Neurologist",
     },
     {
-      q: "What is included with annual licensing or buyout delivery from Lochan Jangid?",
-      a: "Lochan Jangid provides complete turnkey setup, hospital custom branding (hospital name, logos, custom domain SSL), staff training, 1-click database export utilities (CSV/SQL), and a legal software escrow clause for total autonomy and peace of mind.",
+      id: 5,
+      name: "Pediatrics & Child Wellness",
+      doctor: "Dr. Vikram Sethi",
+      degrees: "MBBS, MD (Pediatrics), DCH",
+      cabin: "Cabin 05 · First Floor",
+      fee: "₹600",
+      hours: "09:30 AM – 01:30 PM & 05:00 PM – 08:00 PM",
+      description:
+        "Newborn care, growth milestone tracking, nutritional counseling, acute childhood infections, and complete UIP immunization schedules.",
+      tag: "Senior Pediatrician",
+    },
+    {
+      id: 6,
+      name: "Orthopedics & Joint Reconstruction",
+      doctor: "Dr. Meera Iyer",
+      degrees: "MS (Orthopedics), MCh (Ortho)",
+      cabin: "Cabin 06 · Ground Floor",
+      fee: "₹750",
+      hours: "10:00 AM – 02:00 PM & 05:30 PM – 08:30 PM",
+      description:
+        "Joint arthroplasty, fracture trauma management, sports ligament rehabilitation, osteopenia management, and spine evaluations.",
+      tag: "Orthopedic Surgeon",
     },
   ];
 
-  return (
-    <main className="min-h-screen bg-slate-900 text-slate-100 selection:bg-emerald-500 selection:text-white">
-      {/* 1. EXECUTIVE COMMERCIAL HERO BANNER */}
-      <section
-        id="hero"
-        className="relative overflow-hidden pt-12 pb-24 border-b border-slate-800 bg-gradient-to-b from-slate-950 via-slate-900 to-emerald-950/40"
-      >
-        {/* Ambient glow backgrounds */}
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] bg-emerald-500/10 blur-[120px] rounded-full pointer-events-none" />
-        <div className="absolute top-10 right-10 w-[400px] h-[300px] bg-purple-500/10 blur-[100px] rounded-full pointer-events-none" />
+  const activeDept = departments.find((d) => d.id === selectedDepartment) || departments[0];
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
-          {/* Executive Tag */}
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-bold uppercase tracking-widest shadow-inner mb-6">
-            <Sparkles className="w-4 h-4 text-emerald-400" />
-            <span>Turnkey Hospital &amp; Medical Clinic Operating System For Sale</span>
+  const role = mounted ? claims?.role : null;
+  const username = mounted ? claims?.username : null;
+
+  return (
+    <main className="min-h-screen bg-white text-[#4B5563] selection:bg-[#0D9488] selection:text-white">
+      {/* 1. TOP LIVE CLINICAL DISPATCH BAR */}
+      <div className="bg-slate-50 border-b border-gray-200 text-xs py-2.5 px-4 sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <span className="flex items-center gap-1.5 text-[#0D9488] font-bold">
+              <span className="w-2 h-2 rounded-full bg-[#0D9488] animate-ping" />
+              {role === "admin" ? (
+                <span>SANJEEVNI CLINIC · EXECUTIVE GOVERNANCE ACTIVE</span>
+              ) : role === "doctor" ? (
+                <span>SANJEEVNI CLINIC · PHYSICIAN WORKSTATION ACTIVE</span>
+              ) : role === "patient" ? (
+                <span>SANJEEVNI CLINIC · PATIENT CARE PORTAL ACTIVE</span>
+              ) : (
+                <span>SANJEEVNI CLINIC · OPD CONSULTATIONS ACTIVE</span>
+              )}
+            </span>
+            <span className="hidden md:inline text-gray-300">|</span>
+            <span className="hidden md:inline text-[#4B5563]">
+              {role === "admin" ? (
+                <span>Logged in as Administrator: <strong className="text-gray-800 font-semibold">{username || "lochan"}</strong></span>
+              ) : role === "doctor" ? (
+                <span>Attending Clinician: <strong className="text-gray-800 font-semibold">Dr. {username || "Physician"}</strong></span>
+              ) : role === "patient" ? (
+                <span>Patient Account: <strong className="text-gray-800 font-semibold">{username || "Registered Patient"}</strong></span>
+              ) : (
+                <span>Hours: <strong className="text-gray-700">09:00 AM – 01:00 PM &amp; 05:00 PM – 08:00 PM</strong></span>
+              )}
+            </span>
           </div>
 
-          {/* Main Sales Headline */}
-          <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black tracking-tight text-white max-w-5xl mx-auto leading-tight">
-            The Complete Digital System for{" "}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400">
-              Modern Hospitals &amp; Clinics
+          <div className="flex items-center gap-4">
+            <span className="text-[#4B5563] flex items-center gap-1.5">
+              <PhoneCall className="w-3.5 h-3.5 text-red-600" />
+              <span>24x7 Trauma Line:</span>
+              <a href="tel:+919999108108" className="text-red-600 font-bold hover:underline">
+                +91 9999-108-108
+              </a>
             </span>
-          </h1>
-
-          {/* Pitch Subtitle mentioning Lochan Jangid */}
-          <p className="mt-6 text-base sm:text-xl text-slate-300 max-w-3xl mx-auto leading-relaxed">
-            Architected and engineered by <strong className="text-white font-bold">Lochan Jangid</strong>. A full-scale, production-ready operating system delivering complete <strong>Patient</strong>, <strong>Doctor</strong>, and <strong>Hospital Admin</strong> portals, live OPD TV waiting room signage with audio chimes, PhonePe direct doctor settlement, and inpatient bed census.
-          </p>
-
-          {/* Core Interactive Action Buttons */}
-          <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
-            <button
-              type="button"
-              onClick={() => handleOpenDemoModal("admin")}
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-8 py-4 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-black text-sm shadow-xl shadow-emerald-500/20 transition-all transform hover:-translate-y-0.5 active:translate-y-0"
-            >
-              <Building2 className="w-5 h-5 text-slate-950" />
-              <span>Launch Live Demo with Your Hospital Name</span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
-
             <Link
-              href="/hospital-plans"
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-4 rounded-2xl bg-white/10 hover:bg-white/15 text-white font-bold text-sm border border-white/15 backdrop-blur-md transition"
+              href="/chat"
+              className="px-3 py-1 rounded-full bg-teal-50 text-[#0D9488] border border-teal-200 hover:bg-teal-100 text-xs font-bold transition flex items-center gap-1"
             >
-              <Eye className="w-4 h-4 text-emerald-400" />
-              <span>View All Plans &amp; Commercial Features</span>
+              <Sparkles className="w-3 h-3 text-[#0D9488]" />
+              <span>AI Assistant</span>
             </Link>
           </div>
+        </div>
+      </div>
 
-          {/* Live Trust Metrics */}
-          <div className="mt-14 grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto text-left">
-            <div className="p-4 rounded-2xl bg-slate-800/60 border border-slate-700/60 backdrop-blur-md">
-              <span className="text-[11px] uppercase tracking-wider font-bold text-emerald-400 block">
-                3 Unified Portals
-              </span>
-              <strong className="text-xl font-black text-white">Patient · Doctor · Admin</strong>
-              <p className="text-xs text-slate-400 mt-0.5">Role-based security</p>
+      {/* 2. ROLE-SPECIFIC HERO SECTION */}
+
+      {/* CASE A: ADMIN ROLE */}
+      {role === "admin" && (
+        <section className="relative overflow-hidden pt-16 pb-20 border-b border-gray-200 bg-white">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-50 border border-blue-200 text-[#1E3A8A] text-xs font-bold uppercase tracking-wider mb-6">
+              <ShieldCheck className="w-3.5 h-3.5 text-[#1E3A8A]" />
+              <span>ADMINISTRATIVE EXECUTIVE COCKPIT · SUPERUSER CONTROL</span>
             </div>
-            <div className="p-4 rounded-2xl bg-slate-800/60 border border-slate-700/60 backdrop-blur-md">
-              <span className="text-[11px] uppercase tracking-wider font-bold text-purple-400 block">
-                PhonePe Settlement
-              </span>
-              <strong className="text-xl font-black text-white">0% Fee Direct Pay</strong>
-              <p className="text-xs text-slate-400 mt-0.5">Instant GST receipt voucher</p>
+
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight text-[#1E3A8A] max-w-4xl mx-auto leading-tight">
+              Hospital Governance &amp; Executive Command
+            </h1>
+
+            <p className="mt-5 text-base sm:text-lg text-[#4B5563] max-w-3xl mx-auto leading-relaxed">
+              Welcome, Administrator <strong>{username || "Lochan"}</strong>. Manage clinical doctor appointments, issue secure physician access keys, monitor real-time bed census, supervise OPD queue chimes, and track hospital payments.
+            </p>
+
+            {/* Admin Primary Actions */}
+            <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
+              <Link
+                href="/admin"
+                className="inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-xl bg-[#0D9488] hover:bg-[#0F766E] text-white font-bold text-sm shadow-md transition-all"
+              >
+                <LayoutDashboard className="w-5 h-5 text-white" />
+                <span>Open ERP Console</span>
+                <ArrowRight className="w-4 h-4 text-white" />
+              </Link>
+
+              <Link
+                href="/opd-queue"
+                className="inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-xl bg-[#1E3A8A] hover:bg-blue-900 text-white font-bold text-sm shadow-md transition-all"
+              >
+                <Tv className="w-5 h-5 text-teal-300" />
+                <span>OPD TV Signage</span>
+              </Link>
+
+              <Link
+                href="/beds"
+                className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-white hover:bg-gray-50 text-[#1E3A8A] font-bold text-sm border border-gray-300 shadow-sm transition"
+              >
+                <Bed className="w-5 h-5 text-[#0D9488]" />
+                <span>Inpatient Bed Census</span>
+              </Link>
+
+              <Link
+                href="/billing"
+                className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-white hover:bg-gray-50 text-[#1E3A8A] font-bold text-sm border border-gray-300 shadow-sm transition"
+              >
+                <CreditCard className="w-5 h-5 text-[#0D9488]" />
+                <span>Revenue &amp; Payments (7240499165)</span>
+              </Link>
             </div>
-            <div className="p-4 rounded-2xl bg-slate-800/60 border border-slate-700/60 backdrop-blur-md">
-              <span className="text-[11px] uppercase tracking-wider font-bold text-teal-400 block">
-                Hospital Operations
-              </span>
-              <strong className="text-xl font-black text-white">OPD TV &amp; IPD Beds</strong>
-              <p className="text-xs text-slate-400 mt-0.5">Live queue chime + ICU beds</p>
-            </div>
-            <div className="p-4 rounded-2xl bg-slate-800/60 border border-slate-700/60 backdrop-blur-md">
-              <span className="text-[11px] uppercase tracking-wider font-bold text-cyan-400 block">
-                Deployment Model
-              </span>
-              <strong className="text-xl font-black text-white">Turnkey / Source Code</strong>
-              <p className="text-xs text-slate-400 mt-0.5">Custom branding &amp; hosting</p>
+
+            {/* Admin Metric Cards */}
+            <div className="mt-14 grid grid-cols-2 md:grid-cols-4 gap-5 max-w-5xl mx-auto text-left">
+              <Link
+                href="/admin"
+                className="p-5 rounded-2xl bg-white border border-gray-200 shadow-sm hover:border-[#0D9488] hover:shadow-md transition group"
+              >
+                <span className="text-[11px] uppercase tracking-wider font-bold text-[#0D9488] block">
+                  Staff Credentialing
+                </span>
+                <strong className="text-xl font-black text-[#1E3A8A] mt-1 block group-hover:text-[#0D9488] transition">
+                  Doctor Access Keys
+                </strong>
+                <p className="text-xs text-[#4B5563] mt-1">Appoint doctors &amp; generate keys</p>
+              </Link>
+
+              <Link
+                href="/billing"
+                className="p-5 rounded-2xl bg-white border border-gray-200 shadow-sm hover:border-[#0D9488] hover:shadow-md transition group"
+              >
+                <span className="text-[11px] uppercase tracking-wider font-bold text-[#0D9488] block">
+                  Admin Destination
+                </span>
+                <strong className="text-xl font-black text-[#1E3A8A] mt-1 block group-hover:text-[#0D9488] transition">
+                  7240499165@upi
+                </strong>
+                <p className="text-xs text-[#4B5563] mt-1">Direct PhonePe collections</p>
+              </Link>
+
+              <Link
+                href="/beds"
+                className="p-5 rounded-2xl bg-white border border-gray-200 shadow-sm hover:border-[#0D9488] hover:shadow-md transition group"
+              >
+                <span className="text-[11px] uppercase tracking-wider font-bold text-[#0D9488] block">
+                  Inpatient Telemetry
+                </span>
+                <strong className="text-xl font-black text-[#1E3A8A] mt-1 block group-hover:text-[#0D9488] transition">
+                  20 Hospital Beds
+                </strong>
+                <p className="text-xs text-[#4B5563] mt-1">ICU, Semi-Private, General</p>
+              </Link>
+
+              <Link
+                href="/opd-queue"
+                className="p-5 rounded-2xl bg-white border border-gray-200 shadow-sm hover:border-[#0D9488] hover:shadow-md transition group"
+              >
+                <span className="text-[11px] uppercase tracking-wider font-bold text-[#0D9488] block">
+                  Waiting Hall Audio
+                </span>
+                <strong className="text-xl font-black text-[#1E3A8A] mt-1 block group-hover:text-[#0D9488] transition">
+                  Live OPD Queue
+                </strong>
+                <p className="text-xs text-[#4B5563] mt-1">Web Audio cabin chimes</p>
+              </Link>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
-      {/* 2. THE THREE FOUNDATIONAL ECOSYSTEMS (PATIENT, DOCTOR, ADMIN) */}
-      <section className="py-20 border-b border-slate-800 bg-slate-950">
+      {/* CASE B: DOCTOR ROLE */}
+      {role === "doctor" && (
+        <section className="relative overflow-hidden pt-16 pb-20 border-b border-gray-200 bg-white">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-teal-50 border border-teal-200 text-[#0D9488] text-xs font-bold uppercase tracking-wider mb-6">
+              <Stethoscope className="w-3.5 h-3.5 text-[#0D9488]" />
+              <span>PHYSICIAN CLINICAL WORKSTATION · ACTIVE CLINICIAN</span>
+            </div>
+
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight text-[#1E3A8A] max-w-4xl mx-auto leading-tight">
+              Doctor Chamber Cockpit &amp; Clinical Encounters
+            </h1>
+
+            <p className="mt-5 text-base sm:text-lg text-[#4B5563] max-w-3xl mx-auto leading-relaxed">
+              Welcome, <strong>Dr. {username || "Physician"}</strong>. Review today&apos;s scheduled appointments, summon waiting hall patients with audible chimes, complete active consult sessions, and conduct virtual teleconsultations.
+            </p>
+
+            {/* Doctor Primary Actions */}
+            <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
+              <Link
+                href="/doctor-portal"
+                className="inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-xl bg-[#0D9488] hover:bg-[#0F766E] text-white font-bold text-sm shadow-md transition-all"
+              >
+                <Stethoscope className="w-5 h-5 text-white" />
+                <span>Open Doctor Chamber Cockpit</span>
+                <ArrowRight className="w-4 h-4 text-white" />
+              </Link>
+
+              <Link
+                href="/opd-queue"
+                className="inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-xl bg-[#1E3A8A] hover:bg-blue-900 text-white font-bold text-sm shadow-md transition-all"
+              >
+                <Tv className="w-5 h-5 text-teal-300" />
+                <span>Call Patient (OPD TV 🔔)</span>
+              </Link>
+
+              <Link
+                href="/teleconsult"
+                className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-white hover:bg-gray-50 text-[#1E3A8A] font-bold text-sm border border-gray-300 shadow-sm transition"
+              >
+                <Video className="w-5 h-5 text-[#0D9488]" />
+                <span>Video Teleconsultation</span>
+              </Link>
+
+              <Link
+                href="/prescriptions"
+                className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-white hover:bg-gray-50 text-[#1E3A8A] font-bold text-sm border border-gray-300 shadow-sm transition"
+              >
+                <FileText className="w-5 h-5 text-[#0D9488]" />
+                <span>Digital Prescriptions</span>
+              </Link>
+            </div>
+
+            {/* Doctor Quick Access Cards */}
+            <div className="mt-14 grid grid-cols-2 md:grid-cols-4 gap-5 max-w-5xl mx-auto text-left">
+              <Link
+                href="/doctor-portal"
+                className="p-5 rounded-2xl bg-white border border-gray-200 shadow-sm hover:border-[#0D9488] hover:shadow-md transition group"
+              >
+                <span className="text-[11px] uppercase tracking-wider font-bold text-[#0D9488] block">
+                  Scheduled Visits
+                </span>
+                <strong className="text-xl font-black text-[#1E3A8A] mt-1 block group-hover:text-[#0D9488] transition">
+                  Patient Roster
+                </strong>
+                <p className="text-xs text-[#4B5563] mt-1">Consultation queue &amp; history</p>
+              </Link>
+
+              <Link
+                href="/opd-queue"
+                className="p-5 rounded-2xl bg-white border border-gray-200 shadow-sm hover:border-[#0D9488] hover:shadow-md transition group"
+              >
+                <span className="text-[11px] uppercase tracking-wider font-bold text-[#0D9488] block">
+                  Waiting Hall Chime
+                </span>
+                <strong className="text-xl font-black text-[#1E3A8A] mt-1 block group-hover:text-[#0D9488] transition">
+                  OPD Audio Call
+                </strong>
+                <p className="text-xs text-[#4B5563] mt-1">Summon patient &amp; complete session</p>
+              </Link>
+
+              <Link
+                href="/teleconsult"
+                className="p-5 rounded-2xl bg-white border border-gray-200 shadow-sm hover:border-[#0D9488] hover:shadow-md transition group"
+              >
+                <span className="text-[11px] uppercase tracking-wider font-bold text-[#0D9488] block">
+                  Telemedicine
+                </span>
+                <strong className="text-xl font-black text-[#1E3A8A] mt-1 block group-hover:text-[#0D9488] transition">
+                  Virtual Chambers
+                </strong>
+                <p className="text-xs text-[#4B5563] mt-1">HD video &amp; live notes dock</p>
+              </Link>
+
+              <Link
+                href="/lab-reports"
+                className="p-5 rounded-2xl bg-white border border-gray-200 shadow-sm hover:border-[#0D9488] hover:shadow-md transition group"
+              >
+                <span className="text-[11px] uppercase tracking-wider font-bold text-[#0D9488] block">
+                  Diagnostics
+                </span>
+                <strong className="text-xl font-black text-[#1E3A8A] mt-1 block group-hover:text-[#0D9488] transition">
+                  EHR Lab Results
+                </strong>
+                <p className="text-xs text-[#4B5563] mt-1">CBC, HbA1c, Lipid panels</p>
+              </Link>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* CASE C: PATIENT ROLE */}
+      {role === "patient" && (
+        <section className="relative overflow-hidden pt-16 pb-20 border-b border-gray-200 bg-white">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-teal-50 border border-teal-200 text-[#0D9488] text-xs font-bold uppercase tracking-wider mb-6">
+              <UserCheck className="w-3.5 h-3.5 text-[#0D9488]" />
+              <span>PATIENT PERSONAL HEALTH PORTAL · SANJEEVNI CLINIC</span>
+            </div>
+
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight text-[#1E3A8A] max-w-4xl mx-auto leading-tight">
+              Your Health, Appointments &amp; Medical Records
+            </h1>
+
+            <p className="mt-5 text-base sm:text-lg text-[#4B5563] max-w-3xl mx-auto leading-relaxed">
+              Welcome back, <strong>{username || "Patient"}</strong>. Book verified doctor consultations, check live waiting hall OPD tokens, view pathology diagnostic results, and download digitally signed prescriptions.
+            </p>
+
+            {/* Patient Primary Actions */}
+            <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
+              <Link
+                href="/doctors"
+                className="inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-xl bg-[#0D9488] hover:bg-[#0F766E] text-white font-bold text-sm shadow-md transition-all"
+              >
+                <Calendar className="w-5 h-5 text-white" />
+                <span>Book Doctor Consultation</span>
+                <ArrowRight className="w-4 h-4 text-white" />
+              </Link>
+
+              <Link
+                href="/appointments"
+                className="inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-xl bg-[#1E3A8A] hover:bg-blue-900 text-white font-bold text-sm shadow-md transition-all"
+              >
+                <Clock className="w-5 h-5 text-teal-300" />
+                <span>My Appointments</span>
+              </Link>
+
+              <Link
+                href="/lab-reports"
+                className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-white hover:bg-gray-50 text-[#1E3A8A] font-bold text-sm border border-gray-300 shadow-sm transition"
+              >
+                <FlaskConical className="w-5 h-5 text-[#0D9488]" />
+                <span>Diagnostic Lab Reports</span>
+              </Link>
+
+              <Link
+                href="/chat"
+                className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-white hover:bg-gray-50 text-[#1E3A8A] font-bold text-sm border border-gray-300 shadow-sm transition"
+              >
+                <MessageSquare className="w-5 h-5 text-[#0D9488]" />
+                <span>Ask AI Health Assistant</span>
+              </Link>
+            </div>
+
+            {/* Patient Services Cards */}
+            <div className="mt-14 grid grid-cols-2 md:grid-cols-4 gap-5 max-w-5xl mx-auto text-left">
+              <Link
+                href="/doctors"
+                className="p-5 rounded-2xl bg-white border border-gray-200 shadow-sm hover:border-[#0D9488] hover:shadow-md transition group"
+              >
+                <span className="text-[11px] uppercase tracking-wider font-bold text-[#0D9488] block">
+                  Expert Clinicians
+                </span>
+                <strong className="text-xl font-black text-[#1E3A8A] mt-1 block group-hover:text-[#0D9488] transition">
+                  Book Chamber Slot
+                </strong>
+                <p className="text-xs text-[#4B5563] mt-1">6 multi-specialty departments</p>
+              </Link>
+
+              <Link
+                href="/opd-queue"
+                className="p-5 rounded-2xl bg-white border border-gray-200 shadow-sm hover:border-[#0D9488] hover:shadow-md transition group"
+              >
+                <span className="text-[11px] uppercase tracking-wider font-bold text-[#0D9488] block">
+                  Waiting Hall Telemetry
+                </span>
+                <strong className="text-xl font-black text-[#1E3A8A] mt-1 block group-hover:text-[#0D9488] transition">
+                  Live OPD Queue TV
+                </strong>
+                <p className="text-xs text-[#4B5563] mt-1">Track token call status live</p>
+              </Link>
+
+              <Link
+                href="/prescriptions"
+                className="p-5 rounded-2xl bg-white border border-gray-200 shadow-sm hover:border-[#0D9488] hover:shadow-md transition group"
+              >
+                <span className="text-[11px] uppercase tracking-wider font-bold text-[#0D9488] block">
+                  Medical Records
+                </span>
+                <strong className="text-xl font-black text-[#1E3A8A] mt-1 block group-hover:text-[#0D9488] transition">
+                  Digital Prescriptions
+                </strong>
+                <p className="text-xs text-[#4B5563] mt-1">Prescription history &amp; dosage</p>
+              </Link>
+
+              <Link
+                href="/teleconsult"
+                className="p-5 rounded-2xl bg-white border border-gray-200 shadow-sm hover:border-[#0D9488] hover:shadow-md transition group"
+              >
+                <span className="text-[11px] uppercase tracking-wider font-bold text-[#0D9488] block">
+                  Virtual Care
+                </span>
+                <strong className="text-xl font-black text-[#1E3A8A] mt-1 block group-hover:text-[#0D9488] transition">
+                  Video Consultations
+                </strong>
+                <p className="text-xs text-[#4B5563] mt-1">HD video chamber with doctor</p>
+              </Link>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* CASE D: GUEST / UNAUTHENTICATED HERO */}
+      {!role && (
+        <section className="relative overflow-hidden pt-20 pb-28 border-b border-gray-200 bg-white">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-50 border border-blue-200 text-[#1E3A8A] text-xs font-bold uppercase tracking-wider mb-8">
+              <Building2 className="w-3.5 h-3.5 text-[#1E3A8A]" />
+              <span>Sanjeevni Super-Specialty Medical Pavilion · Registered Clinic</span>
+            </div>
+
+            <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black tracking-tight text-[#1E3A8A] max-w-5xl mx-auto leading-tight">
+              High-Precision Clinical Medicine &amp; Compassionate Care
+            </h1>
+
+            <p className="mt-6 text-base sm:text-xl text-[#4B5563] max-w-3xl mx-auto leading-relaxed">
+              Welcome to Sanjeevni Clinic. Offering expert multi-specialty physician chambers, live OPD token queues, 24/7 emergency trauma care, in-house digital prescriptions, and automated laboratory diagnostics.
+            </p>
+
+            {/* Guest Primary Action Buttons */}
+            <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
+              <Link
+                href="/doctors"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-8 py-4 rounded-xl bg-[#0D9488] hover:bg-[#0F766E] text-white font-bold text-sm shadow-md transition-all transform hover:-translate-y-0.5 active:translate-y-0"
+              >
+                <Calendar className="w-5 h-5 text-white" />
+                <span>Book Doctor Consultation</span>
+                <ArrowRight className="w-4 h-4 text-white" />
+              </Link>
+
+              <Link
+                href="/login"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-4 rounded-xl bg-[#1E3A8A] hover:bg-blue-900 text-white font-bold text-sm shadow-md transition"
+              >
+                <LogIn className="w-4 h-4 text-teal-300" />
+                <span>Patient / Doctor Sign In</span>
+              </Link>
+
+              <Link
+                href="/emergency"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-4 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 font-bold text-sm border border-red-200 transition"
+              >
+                <AlertTriangle className="w-4 h-4 text-red-600" />
+                <span>Emergency SOS</span>
+              </Link>
+            </div>
+
+            {/* Hospital Telemetry Cards */}
+            <div className="mt-16 grid grid-cols-2 md:grid-cols-4 gap-5 max-w-5xl mx-auto text-left">
+              <div className="p-5 rounded-2xl bg-white border border-gray-200 shadow-sm hover:shadow-md transition">
+                <span className="text-[11px] uppercase tracking-wider font-bold text-[#0D9488] block">
+                  Specialist Clinicians
+                </span>
+                <strong className="text-2xl font-black text-[#1E3A8A] mt-1 block">6 Chambers</strong>
+                <p className="text-xs text-[#4B5563] mt-1">Cardiology, Neuro, Ortho &amp; Peds</p>
+              </div>
+
+              <div className="p-5 rounded-2xl bg-white border border-gray-200 shadow-sm hover:shadow-md transition">
+                <span className="text-[11px] uppercase tracking-wider font-bold text-[#0D9488] block">
+                  Waiting Hall Audio TV
+                </span>
+                <strong className="text-2xl font-black text-[#1E3A8A] mt-1 block">Live OPD Queue</strong>
+                <p className="text-xs text-[#4B5563] mt-1">Automated cabin calling chime</p>
+              </div>
+
+              <div className="p-5 rounded-2xl bg-white border border-gray-200 shadow-sm hover:shadow-md transition">
+                <span className="text-[11px] uppercase tracking-wider font-bold text-[#0D9488] block">
+                  Inpatient Wards
+                </span>
+                <strong className="text-2xl font-black text-[#1E3A8A] mt-1 block">20 Hospital Beds</strong>
+                <p className="text-xs text-[#4B5563] mt-1">ICU, Semi-Private &amp; Daycare</p>
+              </div>
+
+              <div className="p-5 rounded-2xl bg-white border border-gray-200 shadow-sm hover:shadow-md transition">
+                <span className="text-[11px] uppercase tracking-wider font-bold text-[#0D9488] block">
+                  Diagnostics &amp; Lab
+                </span>
+                <strong className="text-2xl font-black text-[#1E3A8A] mt-1 block">NABL-Standard</strong>
+                <p className="text-xs text-[#4B5563] mt-1">Automated digital pathology</p>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* 3. CLINICAL DEPARTMENTS & SPECIALIST DOCTORS */}
+      <section className="py-24 border-b border-gray-200 bg-slate-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-3xl mx-auto mb-14">
-            <span className="text-xs font-bold uppercase tracking-widest text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
-              The 3 Integrated Sub-Systems
+          <div className="text-center max-w-3xl mx-auto mb-16">
+            <span className="text-xs font-bold uppercase tracking-widest text-[#0D9488] bg-teal-50 px-3.5 py-1.5 rounded-full border border-teal-200">
+              Clinical Specializations
             </span>
-            <h2 className="text-3xl sm:text-4xl font-black text-white mt-3 tracking-tight">
-              One Unified Core Powering Every Healthcare Role
+            <h2 className="text-3xl sm:text-4xl font-black text-[#1E3A8A] mt-4 tracking-tight">
+              Expert Multi-Disciplinary Medical Faculty
             </h2>
-            <p className="text-sm text-slate-400 mt-2">
-              Everything your hospital needs without juggling 5 different subscriptions. Built specifically for high-efficiency clinical operations.
+            <p className="text-sm text-[#4B5563] mt-2.5">
+              Select a clinical department to explore consulting hours, specialist credentials, and book an immediate appointment.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {/* System 1: Patient System */}
-            <div className="rounded-3xl bg-slate-900 border border-slate-800 p-8 flex flex-col justify-between hover:border-emerald-500/40 transition group">
-              <div>
-                <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center font-bold text-2xl mb-6 group-hover:scale-110 transition-transform">
-                  🧑‍🦱
-                </div>
-                <span className="text-[11px] uppercase font-bold tracking-wider text-emerald-400">
-                  Sub-System 01
-                </span>
-                <h3 className="text-2xl font-black text-white mt-1">Patient Portal &amp; Care App</h3>
-                <p className="text-xs text-slate-400 mt-2 leading-relaxed">
-                  24/7 frictionless patient booking with 30-minute slot availability, conflict locking, WhatsApp confirmations, digital prescription downloads, and longitudinal vital sign history.
-                </p>
-
-                <ul className="mt-6 space-y-2 text-xs text-slate-300">
-                  <li className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-emerald-400" />
-                    <span>Real-time doctor appointment booking</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-emerald-400" />
-                    <span>PhonePe UPI scan &amp; pay with tax receipt</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-emerald-400" />
-                    <span>Digital Rx prescriptions &amp; lab results access</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-emerald-400" />
-                    <span>Multilingual support in English &amp; Hindi</span>
-                  </li>
-                </ul>
-              </div>
-
-              <div className="mt-8 pt-6 border-t border-slate-800">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            {/* Department Navigation List */}
+            <div className="lg:col-span-5 space-y-3">
+              {departments.map((dept) => (
                 <button
+                  key={dept.id}
                   type="button"
-                  onClick={() => handleOpenDemoModal("patient")}
-                  className="w-full py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition"
+                  onClick={() => setSelectedDepartment(dept.id)}
+                  className={`w-full p-4 rounded-xl border text-left transition flex items-center justify-between gap-3 ${
+                    selectedDepartment === dept.id
+                      ? "bg-white border-[#0D9488] ring-2 ring-[#0D9488]/20 shadow-md text-[#1E3A8A]"
+                      : "bg-white border-gray-200 hover:border-gray-300 text-[#4B5563]"
+                  }`}
                 >
-                  <span>Experience Patient Portal Demo</span>
-                  <ArrowRight className="w-3.5 h-3.5 text-emerald-400" />
+                  <div className="space-y-0.5">
+                    <strong className={`text-sm font-bold block ${selectedDepartment === dept.id ? "text-[#1E3A8A]" : "text-gray-800"}`}>
+                      {dept.name}
+                    </strong>
+                    <span className="text-xs text-[#4B5563]">{dept.doctor}</span>
+                  </div>
+                  <span className="text-xs font-mono font-bold text-[#0D9488] shrink-0 bg-teal-50 px-2.5 py-1 rounded-md border border-teal-200">
+                    {dept.fee}
+                  </span>
                 </button>
-              </div>
+              ))}
             </div>
 
-            {/* System 2: Doctor System */}
-            <div className="rounded-3xl bg-slate-900 border border-slate-800 p-8 flex flex-col justify-between hover:border-teal-500/40 transition group">
-              <div>
-                <div className="w-14 h-14 rounded-2xl bg-teal-500/10 text-teal-400 flex items-center justify-center font-bold text-2xl mb-6 group-hover:scale-110 transition-transform">
-                  🩺
+            {/* Department Detailed Card */}
+            <div className="lg:col-span-7 bg-white border border-gray-200 rounded-2xl p-8 shadow-sm">
+              <div className="flex flex-wrap items-center justify-between gap-4 pb-6 border-b border-gray-200">
+                <div>
+                  <span className="text-xs font-bold text-[#0D9488] uppercase tracking-wider block">
+                    {activeDept.tag}
+                  </span>
+                  <h3 className="text-2xl font-black text-[#1E3A8A] mt-1">{activeDept.doctor}</h3>
+                  <p className="text-xs text-[#4B5563] mt-0.5 font-medium">{activeDept.degrees}</p>
                 </div>
-                <span className="text-[11px] uppercase font-bold tracking-wider text-teal-400">
-                  Sub-System 02
-                </span>
-                <h3 className="text-2xl font-black text-white mt-1">Doctor Clinical Workstation</h3>
-                <p className="text-xs text-slate-400 mt-2 leading-relaxed">
-                  Dedicated physician console designed for speed. Open active queue visits, issue standardized digital Rx prescriptions with dosage calculators, log diagnosis notes, and initiate teleconsultations.
+                <div className="text-right">
+                  <span className="text-[10px] uppercase font-bold text-gray-500 block">Consultation Fee</span>
+                  <span className="text-2xl font-black text-[#0D9488] font-mono">{activeDept.fee}</span>
+                </div>
+              </div>
+
+              <div className="py-6 space-y-5">
+                <p className="text-sm text-[#4B5563] leading-relaxed">
+                  {activeDept.description}
                 </p>
 
-                <ul className="mt-6 space-y-2 text-xs text-slate-300">
-                  <li className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-teal-400" />
-                    <span>Live OPD token callout &amp; patient queue</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-teal-400" />
-                    <span>1-Click Digital Rx with official clinic seal</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-teal-400" />
-                    <span>Individual availability &amp; slot customization</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-teal-400" />
-                    <span>Direct PhonePe mobile fee settlement</span>
-                  </li>
-                </ul>
-              </div>
-
-              <div className="mt-8 pt-6 border-t border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => handleOpenDemoModal("doctor")}
-                  className="w-full py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition"
-                >
-                  <span>Experience Doctor Workspace Demo</span>
-                  <ArrowRight className="w-3.5 h-3.5 text-teal-400" />
-                </button>
-              </div>
-            </div>
-
-            {/* System 3: Hospital Admin System */}
-            <div className="rounded-3xl bg-slate-900 border border-slate-800 p-8 flex flex-col justify-between hover:border-cyan-500/40 transition group">
-              <div>
-                <div className="w-14 h-14 rounded-2xl bg-cyan-500/10 text-cyan-400 flex items-center justify-center font-bold text-2xl mb-6 group-hover:scale-110 transition-transform">
-                  🏥
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                  <div className="p-4 rounded-xl bg-slate-50 border border-gray-200">
+                    <span className="text-[10px] text-gray-500 uppercase font-bold block">Consultation Chamber</span>
+                    <strong className="text-[#1E3A8A] mt-1 block text-sm">{activeDept.cabin}</strong>
+                  </div>
+                  <div className="p-4 rounded-xl bg-slate-50 border border-gray-200">
+                    <span className="text-[10px] text-gray-500 uppercase font-bold block">OPD Schedule</span>
+                    <strong className="text-[#1E3A8A] mt-1 block text-sm">{activeDept.hours}</strong>
+                  </div>
                 </div>
-                <span className="text-[11px] uppercase font-bold tracking-wider text-cyan-400">
-                  Sub-System 03
-                </span>
-                <h3 className="text-2xl font-black text-white mt-1">Hospital Executive ERP</h3>
-                <p className="text-xs text-slate-400 mt-2 leading-relaxed">
-                  Complete executive command. Monitor hospital gross revenues, track departmental financial performance, manage staff permissions, oversee ICU bed availability, and manage OPD wait times.
-                </p>
-
-                <ul className="mt-6 space-y-2 text-xs text-slate-300">
-                  <li className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-cyan-400" />
-                    <span>Hospital financial ledger &amp; GST invoices</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-cyan-400" />
-                    <span>Bed &amp; Ward Inpatient census management</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-cyan-400" />
-                    <span>Central Pharmacy inventory &amp; reorder alerts</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-cyan-400" />
-                    <span>Comprehensive clinic audit trails &amp; analytics</span>
-                  </li>
-                </ul>
               </div>
 
-              <div className="mt-8 pt-6 border-t border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => handleOpenDemoModal("admin")}
-                  className="w-full py-2.5 px-4 rounded-xl bg-cyan-950/80 hover:bg-cyan-900 text-cyan-200 border border-cyan-800/60 font-bold text-xs flex items-center justify-center gap-1.5 transition"
+              <div className="pt-6 border-t border-gray-200 flex flex-wrap items-center justify-between gap-4">
+                <span className="text-xs text-[#4B5563] flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4 text-[#0D9488]" />
+                  <span>30-minute guaranteed consultation slots</span>
+                </span>
+                <Link
+                  href="/doctors"
+                  className="px-6 py-3 rounded-xl bg-[#0D9488] hover:bg-[#0F766E] text-white font-bold text-xs flex items-center gap-2 shadow-sm transition"
                 >
-                  <span>Experience Hospital Admin Demo</span>
-                  <ArrowRight className="w-3.5 h-3.5 text-cyan-400" />
-                </button>
+                  <span>Book with {activeDept.doctor.split(" ")[1]}</span>
+                  <ArrowRight className="w-3.5 h-3.5 text-white" />
+                </Link>
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* 3. VISUAL FEATURE SHOWCASE WITH DETAILED PHOTOS / MOCKUPS */}
-      <section id="features" className="py-24 bg-slate-900">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-24">
-          <div className="text-center max-w-3xl mx-auto space-y-3">
-            <span className="text-xs font-bold uppercase tracking-widest text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
-              Visual Product Modules
+      {/* 4. HOSPITAL OPERATIONAL MODULES */}
+      <section className="py-24 bg-white border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center max-w-3xl mx-auto mb-16">
+            <span className="text-xs font-bold uppercase tracking-widest text-[#0D9488] bg-teal-50 px-3.5 py-1.5 rounded-full border border-teal-200">
+              Clinical Infrastructure
             </span>
-            <h2 className="text-3xl sm:text-5xl font-black text-white tracking-tight">
-              Every Operational Capability Explained
+            <h2 className="text-3xl sm:text-4xl font-black text-[#1E3A8A] mt-4 tracking-tight">
+              Patient Care &amp; Hospital Operations
             </h2>
-            <p className="text-sm text-slate-400">
-              Explore the exact features and visual interfaces your clinic or hospital will receive upon deployment.
+            <p className="text-sm text-[#4B5563] mt-2.5">
+              Explore key hospital services and digital patient care touchpoints.
             </p>
           </div>
 
-          {/* Module 1: Live OPD Waiting Room TV Display */}
-          <div id="opd-tv" className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
-            <div className="space-y-4">
-              <div className="inline-flex items-center gap-2 text-xs font-bold text-teal-400 uppercase tracking-wider">
-                <Tv className="w-4 h-4" />
-                <span>Feature 01 · Waiting Hall Automation</span>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="p-6 rounded-2xl bg-white border border-gray-200 shadow-sm flex flex-col justify-between hover:shadow-md transition">
+              <div>
+                <div className="w-12 h-12 rounded-xl bg-blue-50 text-[#1E3A8A] flex items-center justify-center font-bold mb-4 border border-blue-100">
+                  <Tv className="w-6 h-6" />
+                </div>
+                <h3 className="text-lg font-bold text-[#1E3A8A]">Live OPD Waiting Hall TV</h3>
+                <p className="text-xs text-[#4B5563] mt-2 leading-relaxed">
+                  Real-time token marquee broadcasted in the clinic waiting hall with audible arrival chimes as doctors call patients into their chambers.
+                </p>
               </div>
-              <h3 className="text-2xl sm:text-3xl font-black text-white">
-                Live OPD Waiting Room TV Display with Audio Chimes
-              </h3>
-              <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-                Eliminate waiting room chaos and patient anxiety. Any smart TV or monitor mounted in the waiting hall opens the live screen. As doctors click &ldquo;Call Next Patient&rdquo; in their chamber, token numbers update automatically accompanied by an audible arrival chime.
-              </p>
-
-              <div className="space-y-2 pt-2 text-xs text-slate-300">
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                  <span>Real-time token dispatch with Doctor Cabin destination</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                  <span>Integrated WebAudio arrival chime in waiting hall</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                  <span>Next-in-line tokens displayed for optimal patient flow</span>
-                </div>
-              </div>
-
-              <div className="pt-2">
+              <div className="mt-6 pt-4 border-t border-gray-100">
                 <Link
                   href="/opd-queue"
-                  className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-400 hover:text-emerald-300"
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-[#0D9488] hover:underline"
                 >
-                  <span>Preview Live OPD TV Screen →</span>
+                  <span>View Waiting Hall Signage →</span>
                 </Link>
               </div>
             </div>
 
-            {/* Visual Photo Mockup: OPD TV Screen */}
-            <div className="rounded-3xl bg-slate-950 p-6 border-2 border-slate-800 shadow-2xl relative overflow-hidden group">
-              <div className="flex items-center justify-between pb-4 border-b border-slate-800 text-xs">
-                <span className="font-bold text-white flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping" />
-                  <span>LIVE RECEPTION SIGNAGE TV</span>
-                </span>
-                <span className="font-mono text-slate-400">10:45 AM · AUDIBLE CHIME ON</span>
+            <div className="p-6 rounded-2xl bg-white border border-gray-200 shadow-sm flex flex-col justify-between hover:shadow-md transition">
+              <div>
+                <div className="w-12 h-12 rounded-xl bg-teal-50 text-[#0D9488] flex items-center justify-center font-bold mb-4 border border-teal-100">
+                  <Bed className="w-6 h-6" />
+                </div>
+                <h3 className="text-lg font-bold text-[#1E3A8A]">Inpatient Bed Occupancy (IPD)</h3>
+                <p className="text-xs text-[#4B5563] mt-2 leading-relaxed">
+                  Monitored hospital ward census across ICU suites, Semi-Private rooms, and General Ward with oxygen telemetry and nurse station records.
+                </p>
               </div>
-
-              <div className="mt-6 bg-slate-900 rounded-2xl p-6 border border-slate-800 text-center space-y-4">
-                <span className="text-[11px] uppercase font-bold text-emerald-400 tracking-wider">
-                  Now Calling to Cabin 1
-                </span>
-                <div className="text-6xl font-black text-emerald-400 font-mono tracking-wider">
-                  TOKEN #104
-                </div>
-                <div className="text-sm font-bold text-white">
-                  Pooja Sharma → Dr. Rajesh Sharma (Cardiology)
-                </div>
-              </div>
-
-              <div className="mt-4 grid grid-cols-2 gap-3 text-xs">
-                <div className="p-3 rounded-xl bg-slate-900 border border-slate-800">
-                  <span className="text-[10px] text-slate-500 uppercase font-bold block">Next Up</span>
-                  <span className="font-bold text-slate-200">Token #105 · Amit Verma</span>
-                </div>
-                <div className="p-3 rounded-xl bg-slate-900 border border-slate-800">
-                  <span className="text-[10px] text-slate-500 uppercase font-bold block">Cabin 2</span>
-                  <span className="font-bold text-slate-200">Token #102 · Dr. Priya Verma</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Module 2: PhonePe UPI Direct Doctor Settlement & Receipts */}
-          <div id="billing-flow" className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
-            {/* Visual Photo Mockup: PhonePe QR & Receipt */}
-            <div className="rounded-3xl bg-slate-950 p-6 border-2 border-purple-500/30 shadow-2xl relative overflow-hidden order-2 lg:order-1">
-              <div className="bg-gradient-to-r from-[#5f259f] to-[#451675] p-4 rounded-2xl text-white flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="w-7 h-7 rounded-lg bg-white text-[#5f259f] flex items-center justify-center font-black text-sm">
-                    पे
-                  </span>
-                  <div>
-                    <span className="text-[10px] font-bold text-purple-200 block uppercase">
-                      PhonePe Direct Doctor Gateway
-                    </span>
-                    <strong className="text-sm">Dr. Rajesh Sharma (+91 98765-43211)</strong>
-                  </div>
-                </div>
-                <span className="text-lg font-black font-mono">₹500</span>
-              </div>
-
-              <div className="mt-4 grid grid-cols-2 gap-4 items-center">
-                <div className="bg-white p-3 rounded-xl text-center shadow-md">
-                  <div className="w-28 h-28 mx-auto bg-slate-900 rounded-lg flex items-center justify-center text-white text-xs font-mono">
-                    [QR CODE]
-                  </div>
-                  <span className="text-[10px] font-bold text-purple-950 block mt-1.5">
-                    Scan with PhonePe Scanner
-                  </span>
-                </div>
-
-                <div className="space-y-2 text-xs">
-                  <div className="p-2.5 rounded-xl bg-purple-950/40 border border-purple-800/40 text-purple-200">
-                    <span className="text-[10px] font-bold uppercase block text-purple-400">Official Receipt Issued:</span>
-                    <strong className="font-mono text-white text-xs">SJ-REC-00005</strong>
-                    <span className="text-[10px] block text-emerald-400 font-semibold mt-0.5">PAID &amp; VERIFIED ✓</span>
-                  </div>
-                  <div className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-[11px] text-slate-400">
-                    Settlement: Hospital Cashier &amp; Merchant Gateway Desk
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-4 order-1 lg:order-2">
-              <div className="inline-flex items-center gap-2 text-xs font-bold text-purple-400 uppercase tracking-wider">
-                <QrCode className="w-4 h-4" />
-                <span>Feature 02 · Daily Reconciled Billing</span>
-              </div>
-              <h3 className="text-2xl sm:text-3xl font-black text-white">
-                PhonePe Merchant Dynamic QR, Cash Counter &amp; Payment Receipts
-              </h3>
-              <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-                Eliminate evening cash discrepancies and revenue leakage. Reception staff collect consultation and procedure fees via PhonePe Merchant Dynamic QR, counter cash, or POS card with daily cash drawer closing. Generates official Payment Receipts with statutory consultation GST exemption under Entry 74, Notification 12/2017-CT(R).
-              </p>
-
-              <div className="space-y-2 pt-2 text-xs text-slate-300">
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                  <span>Hospital merchant gateway &amp; cashier desk payment modes</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                  <span>PhonePe Merchant Dynamic QR + Reception Cash Drawer Settlement</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                  <span>Official Payment Receipt with Consultation GST Exemption</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Module 3: Hospital Bed & Ward Management (IPD) */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
-            <div className="space-y-4">
-              <div className="inline-flex items-center gap-2 text-xs font-bold text-cyan-400 uppercase tracking-wider">
-                <Bed className="w-4 h-4" />
-                <span>Feature 03 · Inpatient Operations</span>
-              </div>
-              <h3 className="text-2xl sm:text-3xl font-black text-white">
-                Inpatient (IPD) Bed Occupancy Tracker &amp; Census
-              </h3>
-              <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-                Complete real-time ward census for hospital admissions. Track bed availability across Intensive Care Units (ICU), Semi-Private suites, General Wards, and Daycare with one-click patient admission, oxygen status indicators, and discharge workflows.
-              </p>
-
-              <div className="space-y-2 pt-2 text-xs text-slate-300">
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                  <span>Visual ward matrix with color-coded bed status</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                  <span>Oxygen pipeline &amp; ventilator tracking per bed</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                  <span>Instant nurse admission and billing discharge coordination</span>
-                </div>
-              </div>
-
-              <div className="pt-2">
+              <div className="mt-6 pt-4 border-t border-gray-100">
                 <Link
                   href="/beds"
-                  className="inline-flex items-center gap-1.5 text-xs font-bold text-cyan-400 hover:text-cyan-300"
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-[#0D9488] hover:underline"
                 >
-                  <span>Explore Inpatient Bed Census →</span>
+                  <span>Check Bed Availability →</span>
                 </Link>
               </div>
             </div>
 
-            {/* Visual Photo Mockup: Bed Census */}
-            <div className="rounded-3xl bg-slate-950 p-6 border-2 border-slate-800 shadow-2xl relative overflow-hidden">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-800 text-xs">
-                <span className="font-bold text-white">HOSPITAL BED OCCUPANCY CENSUS</span>
-                <span className="text-emerald-400 font-bold">14 / 20 Available (70%)</span>
-              </div>
-
-              <div className="grid grid-cols-3 gap-3 mt-4 text-xs">
-                <div className="p-3 rounded-xl bg-emerald-950/40 border border-emerald-800/60 text-center">
-                  <span className="text-[10px] text-slate-400 uppercase font-bold block">ICU-01</span>
-                  <span className="text-emerald-400 font-bold text-sm block my-0.5">VACANT</span>
-                  <span className="text-[9px] text-slate-400">O2 Active · Sanitized</span>
+            <div className="p-6 rounded-2xl bg-white border border-gray-200 shadow-sm flex flex-col justify-between hover:shadow-md transition">
+              <div>
+                <div className="w-12 h-12 rounded-xl bg-blue-50 text-[#1E3A8A] flex items-center justify-center font-bold mb-4 border border-blue-100">
+                  <FlaskConical className="w-6 h-6" />
                 </div>
-
-                <div className="p-3 rounded-xl bg-rose-950/40 border border-rose-800/60 text-center">
-                  <span className="text-[10px] text-slate-400 uppercase font-bold block">ICU-02</span>
-                  <span className="text-rose-400 font-bold text-sm block my-0.5">OCCUPIED</span>
-                  <span className="text-[9px] text-slate-400">Patient #1092</span>
-                </div>
-
-                <div className="p-3 rounded-xl bg-emerald-950/40 border border-emerald-800/60 text-center">
-                  <span className="text-[10px] text-slate-400 uppercase font-bold block">GW-101</span>
-                  <span className="text-emerald-400 font-bold text-sm block my-0.5">VACANT</span>
-                  <span className="text-[9px] text-slate-400">General Ward</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Module 4: Digital Prescription (Rx) & Teleconsultation */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
-            {/* Visual Photo Mockup: Digital Rx */}
-            <div className="rounded-3xl bg-slate-950 p-6 border-2 border-slate-800 shadow-2xl relative overflow-hidden order-2 lg:order-1">
-              <div className="bg-white text-slate-900 rounded-2xl p-5 shadow-lg border border-slate-200 text-xs">
-                <div className="flex items-center justify-between pb-3 border-b border-slate-200">
-                  <div className="font-bold text-emerald-900 text-sm">
-                    SANJEEVNI CLINIC · DIGITAL Rx
-                  </div>
-                  <span className="font-mono text-[10px] text-slate-500">Rx #9281-CONF</span>
-                </div>
-
-                <div className="mt-3 flex items-start justify-between text-[11px] text-slate-600">
-                  <div>
-                    <span className="text-slate-400 block">Attending Doctor:</span>
-                    <strong className="text-slate-900">Dr. Rajesh Sharma (MD)</strong>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 block">Patient:</span>
-                    <strong className="text-slate-900">Rahul Sharma (Age 34)</strong>
-                  </div>
-                </div>
-
-                <div className="mt-3 bg-slate-50 p-2.5 rounded-lg border border-slate-200">
-                  <div className="font-mono font-bold text-sm text-emerald-800 mb-1">℞ Prescribed Medications:</div>
-                  <div className="space-y-1 text-[11px]">
-                    <div className="flex justify-between">
-                      <strong>1. Paracetamol 650mg</strong>
-                      <span>1 Tab · Thrice Daily (After Food)</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <strong>2. Amoxicillin 500mg</strong>
-                      <span>1 Cap · Twice Daily (5 Days)</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-3 pt-2 border-t border-slate-200 flex justify-between items-center text-[10px] text-slate-400">
-                  <span>Digitally Authorized EHR</span>
-                  <span className="text-emerald-700 font-bold">Official Clinic Stamp ✓</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-4 order-1 lg:order-2">
-              <div className="inline-flex items-center gap-2 text-xs font-bold text-emerald-400 uppercase tracking-wider">
-                <FileText className="w-4 h-4" />
-                <span>Feature 04 · Clinical Documentation</span>
-              </div>
-              <h3 className="text-2xl sm:text-3xl font-black text-white">
-                Digital Prescriptions (Rx) &amp; WebRTC Teleconsultation
-              </h3>
-              <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-                Doctors generate beautiful branded digital prescriptions in seconds. Medication frequencies and diagnostic instructions are recorded and instantly accessible in the patient app. Doctors can also conduct encrypted WebRTC video teleconsultations with live timer and vitals monitoring.
-              </p>
-
-              <div className="space-y-2 pt-2 text-xs text-slate-300">
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                  <span>Standardized medication dosing with instructions</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                  <span>Instant PDF download and automated WhatsApp dispatch</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                  <span>In-browser WebRTC encrypted video clinic with notes</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* 4. INTERACTIVE HOSPITAL SAVINGS & ROI CALCULATOR */}
-      <section className="py-20 bg-slate-950 border-t border-slate-800">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-3xl mx-auto mb-12 space-y-2">
-            <span className="text-xs font-bold uppercase tracking-widest text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
-              Interactive Commercial Calculator
-            </span>
-            <h2 className="text-3xl sm:text-4xl font-black text-white tracking-tight">
-              Calculate Your Hospital&apos;s Return on Investment (ROI)
-            </h2>
-            <p className="text-xs sm:text-sm text-slate-400">
-              See how eliminating cash discrepancies, slip printing, and waiting hall bottlenecks pays for this software in under 30 days.
-            </p>
-          </div>
-
-          <div className="bg-slate-900 border-2 border-slate-800 rounded-3xl p-6 sm:p-10 shadow-2xl grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-            {/* Sliders Column */}
-            <div className="lg:col-span-7 space-y-6">
-              {/* Daily OPD Patients Slider */}
-              <div className="space-y-2">
-                <div className="flex justify-between items-baseline text-xs">
-                  <label className="font-bold text-slate-300 uppercase tracking-wider">
-                    Average Daily OPD Consultations:
-                  </label>
-                  <strong className="text-emerald-400 text-lg font-mono">{dailyPatients} Patients / Day</strong>
-                </div>
-                <input
-                  type="range"
-                  min={10}
-                  max={250}
-                  step={5}
-                  value={dailyPatients}
-                  onChange={(e) => setDailyPatients(parseInt(e.target.value, 10))}
-                  className="w-full accent-emerald-500 cursor-pointer h-2 bg-slate-800 rounded-lg"
-                />
-                <div className="flex justify-between text-[10px] text-slate-500">
-                  <span>10 (Chamber)</span>
-                  <span>100 (Polyclinic)</span>
-                  <span>250+ (Hospital)</span>
-                </div>
-              </div>
-
-              {/* Inpatient Beds Slider */}
-              <div className="space-y-2">
-                <div className="flex justify-between items-baseline text-xs">
-                  <label className="font-bold text-slate-300 uppercase tracking-wider">
-                    Active Inpatient (IPD) Beds:
-                  </label>
-                  <strong className="text-teal-400 text-lg font-mono">{inpatientBeds} Hospital Beds</strong>
-                </div>
-                <input
-                  type="range"
-                  min={5}
-                  max={100}
-                  step={5}
-                  value={inpatientBeds}
-                  onChange={(e) => setInpatientBeds(parseInt(e.target.value, 10))}
-                  className="w-full accent-teal-500 cursor-pointer h-2 bg-slate-800 rounded-lg"
-                />
-                <div className="flex justify-between text-[10px] text-slate-500">
-                  <span>5 Beds</span>
-                  <span>50 Beds</span>
-                  <span>100+ Beds</span>
-                </div>
-              </div>
-
-              <div className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800 text-xs space-y-2 text-slate-400">
-                <div className="flex items-center gap-2 text-slate-300">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                  <span>Estimated Monthly Consultations: <strong className="text-white">{monthlyPatients.toLocaleString()} visits</strong></span>
-                </div>
-                <div className="flex items-center gap-2 text-slate-300">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                  <span>Staff Hours Saved in Token Calling: <strong className="text-white">{staffHoursSaved} hours / month</strong></span>
-                </div>
-              </div>
-            </div>
-
-            {/* ROI Results Column */}
-            <div className="lg:col-span-5 bg-gradient-to-br from-slate-950 via-slate-900 to-emerald-950/60 p-6 rounded-2xl border border-emerald-500/30 text-center space-y-4 shadow-xl">
-              <span className="text-[10px] uppercase font-bold text-emerald-400 tracking-wider block">
-                Estimated Monthly Value Delivered
-              </span>
-              <div className="text-4xl font-black text-white font-mono">
-                ₹{billingDiscrepanciesSaved.toLocaleString()}
-              </div>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                Saved each month through eliminated billing shrinkage, automated SMS slips, and reduced reception wait-hall crowding.
-              </p>
-
-              <div className="pt-2 border-t border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => handleOpenDemoModal("admin")}
-                  className="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-xs shadow-lg transition flex items-center justify-center gap-2"
-                >
-                  <Building2 className="w-4 h-4 text-slate-950" />
-                  <span>Test Live with Your Hospital Name</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* 5. COMMERCIAL PACKAGING & SOURCE CODE LICENSING */}
-      <section id="architecture" className="py-20 bg-slate-900 border-t border-slate-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-3xl mx-auto mb-14 space-y-3">
-            <span className="text-xs font-bold uppercase tracking-widest text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
-              Commercial Delivery
-            </span>
-            <h2 className="text-3xl sm:text-4xl font-black text-white tracking-tight">
-              What Lochan Jangid Delivers to Hospital Owners
-            </h2>
-            <p className="text-sm text-slate-400">
-              Choose between complete turnkey cloud SaaS deployment, custom white-label branding, or private on-premise hospital intranet setup with automated daily data backups.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div className="p-6 rounded-3xl bg-slate-950 border border-slate-800 space-y-3">
-              <span className="text-2xl">🛡️</span>
-              <h4 className="text-base font-bold text-white">Annual License &amp; Escrow</h4>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                Predictable annual pricing with 1-click full database exports (CSV/SQL) and software escrow clause for total hospital autonomy.
-              </p>
-            </div>
-
-            <div className="p-6 rounded-3xl bg-slate-950 border border-slate-800 space-y-3">
-              <span className="text-2xl">🏷️</span>
-              <h4 className="text-base font-bold text-white">White-Label Branding</h4>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                Rebranded with your hospital name, official logo, custom domain, and customized receipt letterheads.
-              </p>
-            </div>
-
-            <div className="p-6 rounded-3xl bg-slate-950 border border-slate-800 space-y-3">
-              <span className="text-2xl">☁️</span>
-              <h4 className="text-base font-bold text-white">Turnkey Deployment</h4>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                Deployed on your AWS, DigitalOcean, or private on-premise local hospital intranet server with SSL.
-              </p>
-            </div>
-
-            <div className="p-6 rounded-3xl bg-slate-950 border border-slate-800 space-y-3">
-              <span className="text-2xl">🤝</span>
-              <h4 className="text-base font-bold text-white">Direct Support</h4>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                Dedicated engineering support from Lochan Jangid with feature customizations and staff training.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* 6. FAQ ACCORDION SECTION */}
-      <section className="py-20 bg-slate-950 border-t border-slate-800">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
-          <div className="text-center space-y-2">
-            <span className="text-xs font-bold uppercase tracking-widest text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
-              Frequently Asked Questions
-            </span>
-            <h2 className="text-3xl font-black text-white tracking-tight">
-              Hospital Owner &amp; Medical Director FAQ
-            </h2>
-          </div>
-
-          <div className="space-y-3">
-            {faqs.map((faq, idx) => {
-              const isOpen = openFaq === idx;
-              return (
-                <div
-                  key={idx}
-                  className="rounded-2xl bg-slate-900 border border-slate-800 overflow-hidden transition"
-                >
-                  <button
-                    type="button"
-                    onClick={() => setOpenFaq(isOpen ? null : idx)}
-                    className="w-full p-5 text-left flex items-center justify-between gap-4 font-bold text-sm text-white hover:text-emerald-400 transition"
-                  >
-                    <span>{faq.q}</span>
-                    <ChevronDown
-                      className={`w-4 h-4 text-emerald-400 transition-transform ${
-                        isOpen ? "rotate-180" : ""
-                      }`}
-                    />
-                  </button>
-                  {isOpen && (
-                    <div className="p-5 pt-0 text-xs text-slate-300 leading-relaxed border-t border-slate-800/60 mt-1">
-                      {faq.a}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      {/* 7. ABOUT THE DEVELOPER — LOCHAN JANGID SECTION */}
-      <section id="developer" className="py-20 bg-gradient-to-b from-slate-900 to-slate-950 border-t border-slate-800">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="rounded-3xl bg-slate-900/90 border-2 border-emerald-500/30 p-8 sm:p-12 shadow-2xl relative overflow-hidden">
-            <div className="flex flex-col md:flex-row items-center gap-8">
-              <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl bg-gradient-to-tr from-emerald-600 to-teal-400 text-slate-950 flex items-center justify-center font-black text-3xl sm:text-4xl shadow-xl shrink-0">
-                LJ
-              </div>
-
-              <div className="space-y-3 text-center md:text-left">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-300 text-xs font-bold uppercase tracking-wider">
-                  <Code2 className="w-3.5 h-3.5" />
-                  <span>Healthcare Software Engineer</span>
-                </div>
-                <h3 className="text-2xl sm:text-3xl font-black text-white">
-                  Meet the Developer · Lochan Jangid
-                </h3>
-                <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-                  I engineer practical, fast software designed specifically for 10-50 bed hospitals and polyclinics in tier-2 cities. This system eliminates waiting-room friction with audio OPD TV calls, reconciles every rupee with daily cash drawer closing, and runs IPD bed census without heavy IT overhead.
+                <h3 className="text-lg font-bold text-[#1E3A8A]">Diagnostic Pathology &amp; Lab EHR</h3>
+                <p className="text-xs text-[#4B5563] mt-2 leading-relaxed">
+                  In-house clinical pathology results for CBC blood counts, Lipid profile, HbA1c, and Thyroid panels with automated abnormal range flags.
                 </p>
-
-                <div className="pt-3 flex flex-wrap items-center justify-center md:justify-start gap-4">
-                  <button
-                    type="button"
-                    onClick={() => handleOpenDemoModal("admin")}
-                    className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs shadow-lg transition"
-                  >
-                    <span>Test Interactive System Demo</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </button>
-
-                  <Link
-                    href="/hospital-plans"
-                    className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs border border-slate-700 transition"
-                  >
-                    <span>Inspect Commercial Plans &amp; ROI</span>
-                  </Link>
-                </div>
+              </div>
+              <div className="mt-6 pt-4 border-t border-gray-100">
+                <Link
+                  href="/lab-reports"
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-[#0D9488] hover:underline"
+                >
+                  <span>Access Lab Reports →</span>
+                </Link>
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* 8. CONTACT & DEPLOYMENT INQUIRIES SECTION */}
-      <section id="contact" className="py-20 bg-slate-900 border-t border-slate-800">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-6">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-500/10 text-teal-300 text-xs font-bold uppercase tracking-wider border border-teal-500/20">
-            <HeartHandshake className="w-3.5 h-3.5 text-teal-400" />
-            <span>Ready for Hospital Deployment</span>
-          </div>
-          <h2 className="text-3xl sm:text-4xl font-black text-white tracking-tight">
-            Schedule a 1-on-1 Walkthrough or Buyout Discussion
-          </h2>
-          <p className="text-sm text-slate-300 max-w-2xl mx-auto leading-relaxed">
-            Interested in deploying this system at your hospital, clinic, or medical center? Speak directly with developer <strong>Lochan Jangid</strong> regarding custom features, private server setups, and licensing options.
-          </p>
+      {/* 5. 24x7 EMERGENCY & TRAUMA FACILITY */}
+      <section className="py-20 bg-slate-50">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="rounded-2xl bg-red-50 border border-red-200 p-8 sm:p-12 shadow-sm flex flex-col md:flex-row items-center justify-between gap-8">
+            <div className="space-y-3 text-center md:text-left">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-red-100 text-red-800 text-xs font-bold uppercase tracking-wider border border-red-200">
+                <AlertTriangle className="w-3.5 h-3.5 text-red-700" />
+                <span>24x7 Critical Care &amp; Resuscitation</span>
+              </div>
+              <h3 className="text-2xl sm:text-3xl font-black text-red-950">
+                Emergency Trauma &amp; Ambulance Command
+              </h3>
+              <p className="text-xs sm:text-sm text-red-900 max-w-xl leading-relaxed">
+                Equipped with emergency oxygen pipelines, crash carts, cardiac defibrillators, and advanced life-support (ALS) ambulance fleet on standby.
+              </p>
+            </div>
 
-          <div className="flex flex-wrap items-center justify-center gap-4 pt-4">
-            <button
-              type="button"
-              onClick={() => handleOpenDemoModal("admin")}
-              className="inline-flex items-center gap-2 px-8 py-4 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-sm shadow-xl shadow-emerald-950/40 transition transform hover:-translate-y-0.5"
-            >
-              <Building2 className="w-4 h-4 text-slate-950" />
-              <span>Launch Live Demo with Your Hospital Name</span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
+            <div className="flex flex-col sm:flex-row items-center gap-3 shrink-0">
+              <a
+                href="tel:+919999108108"
+                className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-sm shadow-sm transition"
+              >
+                <PhoneCall className="w-4 h-4 text-white animate-pulse" />
+                <span>Call +91 9999-108-108</span>
+              </a>
 
-            <a
-              href="mailto:lochan.jangid@healthcare-tech.dev"
-              className="inline-flex items-center gap-2 px-6 py-4 rounded-2xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-sm border border-slate-700 transition"
-            >
-              <Mail className="w-4 h-4 text-emerald-400" />
-              <span>Email Lochan Jangid</span>
-            </a>
+              <Link
+                href="/emergency"
+                className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl bg-white hover:bg-gray-50 text-red-900 font-bold text-sm border border-red-200 transition shadow-sm"
+              >
+                <span>Emergency Hub</span>
+              </Link>
+            </div>
           </div>
         </div>
       </section>

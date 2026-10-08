@@ -1,5 +1,5 @@
-import PricingAndPlansPage from "../pricing/page";
+import { redirect } from "next/navigation";
 
 export default function HospitalPlansPage() {
-  return <PricingAndPlansPage />;
+  redirect("/");
 }

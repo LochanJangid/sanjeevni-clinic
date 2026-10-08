@@ -2,6 +2,20 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { 
+  Calendar, 
+  Clock, 
+  Stethoscope, 
+  ChevronRight, 
+  FileText, 
+  QrCode, 
+  X, 
+  CheckCircle2, 
+  AlertCircle, 
+  ArrowRight,
+  ShieldCheck,
+  RotateCcw
+} from "lucide-react";
 import { parseTokenClaims } from "../../lib/auth";
 
 interface Appointment {
@@ -96,38 +110,79 @@ function ReschedulePanel({
   }
 
   return (
-    <div className="reschedule-panel">
-      <div className="reschedule-panel-heading">
-        <strong>Choose another time</strong>
-        <button type="button" className="inline-close" onClick={onClose} aria-label="Close reschedule form">×</button>
+    <div className="mt-4 p-5 rounded-2xl bg-slate-50 border border-gray-200 space-y-4">
+      <div className="flex items-center justify-between pb-2 border-b border-gray-200">
+        <strong className="text-sm font-bold text-[#1E3A8A] flex items-center gap-2">
+          <RotateCcw className="w-4 h-4 text-[#0D9488]" />
+          <span>Reschedule Visit Slot</span>
+        </strong>
+        <button
+          type="button"
+          onClick={onClose}
+          className="text-gray-400 hover:text-[#1E3A8A] text-base"
+        >
+          ✕
+        </button>
       </div>
-      <label className="reschedule-date">
-        <span className="field-label">New date</span>
-        <input className="field-input" type="date" min={localDateString()} value={date} onChange={(event) => {
-          setDate(event.target.value);
-          setSlots([]);
-          setTime("");
-          setError("");
-        }} />
-      </label>
+
+      <div>
+        <label className="block text-xs font-semibold uppercase text-gray-500 mb-1.5">
+          Select New Consultation Date
+        </label>
+        <input
+          className="w-full text-xs p-2.5 bg-white border border-gray-200 rounded-xl text-[#1E3A8A] focus:outline-none focus:border-[#0D9488] focus:ring-1 focus:ring-[#0D9488]"
+          type="date"
+          min={localDateString()}
+          value={date}
+          onChange={(event) => {
+            setDate(event.target.value);
+            setSlots([]);
+            setTime("");
+            setError("");
+          }}
+        />
+      </div>
+
       {date && (loading ? (
-        <p className="booking-hint">Checking available times…</p>
+        <p className="text-xs font-medium text-[#0D9488] animate-pulse">Checking doctor availability mesh…</p>
       ) : slots.length > 0 ? (
-        <div className="slot-grid reschedule-slots">
-          {slots.map((slot) => (
-            <label className={time === slot ? "slot-option selected" : "slot-option"} key={slot}>
-              <input type="radio" name={`reschedule-${appointment.id}`} checked={time === slot} onChange={() => setTime(slot)} />
-              <span>{slot}</span>
-            </label>
-          ))}
+        <div>
+          <label className="block text-xs font-semibold uppercase text-gray-500 mb-2">
+            Available 30-min Clinical Slots
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {slots.map((slot) => (
+              <button
+                type="button"
+                key={slot}
+                onClick={() => setTime(slot)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-medium transition ${
+                  time === slot
+                    ? "bg-[#0D9488] text-white font-bold shadow-sm"
+                    : "bg-white text-[#4B5563] hover:bg-slate-100 border border-gray-200"
+                }`}
+              >
+                {slot}
+              </button>
+            ))}
+          </div>
         </div>
       ) : !error ? (
-        <p className="booking-hint">No available times on this date. Choose another day.</p>
+        <p className="text-xs text-gray-400">No available slots on this date. Please choose another date.</p>
       ) : null)}
-      {error && <p className="booking-error" role="alert">{error}</p>}
-      <button type="button" className="button button-primary" disabled={!time || saving} onClick={saveReschedule}>
-        {saving ? "Saving…" : "Save new time"}
-      </button>
+
+      {error && <p className="text-xs text-rose-600">{error}</p>}
+
+      <div className="flex justify-end pt-2">
+        <button
+          type="button"
+          disabled={!time || saving}
+          onClick={saveReschedule}
+          className="px-5 py-2 bg-[#0D9488] hover:bg-[#0F766E] text-white font-bold text-xs rounded-xl shadow-sm transition disabled:opacity-50"
+        >
+          {saving ? "Confirming…" : "Confirm Rescheduled Slot"}
+        </button>
+      </div>
     </div>
   );
 }
@@ -223,118 +278,266 @@ export default function AppointmentsPage() {
   }
 
   return (
-    <main className="page-shell">
-      <div className="appointments-heading">
-        <div>
-          <p className="eyebrow">YOUR VISITS</p>
-          <h1 className="page-title">Appointments, all in one place.</h1>
-          <p className="page-lead">Review upcoming appointments, see past visits, or change a time that no longer works.</p>
-        </div>
-        <Link href="/doctors" className="button button-primary">Book a visit <span aria-hidden="true">↗</span></Link>
-      </div>
+    <div className="min-h-screen bg-white text-[#4B5563] pb-24 pt-6 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto space-y-8">
+        
+        {/* Header Cockpit */}
+        <div className="bg-white p-6 sm:p-8 rounded-3xl border border-gray-200 shadow-sm relative overflow-hidden">
+          <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-center gap-2.5">
+                <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-teal-50 text-[#0D9488] border border-teal-200 inline-flex items-center gap-1.5">
+                  <Calendar className="w-3 h-3 text-[#0D9488]" />
+                  VISITS &amp; CONSULTATIONS MATRIX
+                </span>
+                <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-blue-50 text-[#1E3A8A] border border-blue-200 inline-flex items-center gap-1.5">
+                  <Clock className="w-3 h-3 text-[#1E3A8A]" />
+                  30-MIN RESERVED SLOTS
+                </span>
+              </div>
 
-      {!token && !loading ? (
-        <div className="appointments-blank card">
-          <h2 className="section-heading">Sign in to see your appointments</h2>
-          <p>Your appointment information is private and only available to you.</p>
-          <Link className="button button-primary" href="/login">Sign in</Link>
-        </div>
-      ) : (
-        <>
-          <div className="appointment-tabs" role="tablist" aria-label="Appointment history">
-            <button type="button" role="tab" aria-selected={activeTab === "upcoming"} className={activeTab === "upcoming" ? "appointment-tab active" : "appointment-tab"} onClick={() => setActiveTab("upcoming")}>Upcoming</button>
-            <button type="button" role="tab" aria-selected={activeTab === "past"} className={activeTab === "past" ? "appointment-tab active" : "appointment-tab"} onClick={() => setActiveTab("past")}>Past & cancelled</button>
-            {!loading && <span className="appointment-count">{visibleAppointments.length} {visibleAppointments.length === 1 ? "visit" : "visits"}</span>}
+              <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight text-[#1E3A8A] flex items-center gap-3">
+                <span className="p-2.5 rounded-2xl bg-teal-50 border border-teal-200 text-[#0D9488] shadow-sm">
+                  <Calendar className="w-7 h-7" />
+                </span>
+                <span>My Appointments &amp; Consultations</span>
+              </h1>
+
+              <p className="text-sm text-[#4B5563] max-w-2xl leading-relaxed">
+                Review scheduled clinical consultations, access digital prescriptions (Rx), verify PhonePe payment status, or reschedule appointment timings.
+              </p>
+            </div>
+
+            <Link
+              href="/doctors"
+              className="px-5 py-3 rounded-2xl bg-[#0D9488] hover:bg-[#0F766E] text-white font-bold text-xs shadow-sm flex items-center gap-2 transition self-start lg:self-auto"
+            >
+              <span>Book New Visit</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
           </div>
+        </div>
 
-          {actionError && <p className="booking-error appointment-action-error" role="alert">{actionError}</p>}
-          {error ? (
-            <div className="appointments-blank card appointments-error" role="alert">
-              <h2 className="section-heading">We couldn’t load your visits.</h2>
-              <p>{error}</p>
-              <button className="button button-quiet" onClick={() => setReload((current) => current + 1)}>Try again</button>
+        {!token && !loading ? (
+          <div className="bg-white p-16 rounded-3xl border border-gray-200 text-center space-y-4 shadow-sm">
+            <h2 className="text-xl font-bold text-[#1E3A8A]">Sign In to Review Appointments</h2>
+            <p className="text-xs text-gray-500 max-w-sm mx-auto">
+              Your consultation records and medical history are encrypted and private.
+            </p>
+            <Link
+              href="/login"
+              className="inline-flex items-center gap-1.5 px-6 py-2.5 rounded-xl bg-[#0D9488] hover:bg-[#0F766E] text-white font-bold text-xs shadow-sm"
+            >
+              <span>Sign In to Account</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+        ) : (
+          <>
+            {/* Tab Switcher */}
+            <div className="flex items-center justify-between">
+              <div className="inline-flex p-1.5 rounded-2xl bg-slate-50 border border-gray-200 gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("upcoming")}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition ${
+                    activeTab === "upcoming"
+                      ? "bg-[#0D9488] text-white shadow-sm"
+                      : "text-[#4B5563] hover:text-[#1E3A8A]"
+                  }`}
+                >
+                  Upcoming Appointments
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("past")}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition ${
+                    activeTab === "past"
+                      ? "bg-[#0D9488] text-white shadow-sm"
+                      : "text-[#4B5563] hover:text-[#1E3A8A]"
+                  }`}
+                >
+                  Past &amp; Cancelled
+                </button>
+              </div>
+
+              {!loading && (
+                <span className="text-xs text-gray-500 font-medium">
+                  {visibleAppointments.length} {visibleAppointments.length === 1 ? "Visit" : "Visits"}
+                </span>
+              )}
             </div>
-          ) : loading ? (
-            <div className="appointments-blank card" role="status">Loading your appointments…</div>
-          ) : visibleAppointments.length === 0 ? (
-            <div className="appointments-blank card">
-              <span className="empty-calendar" aria-hidden="true">{activeTab === "upcoming" ? "+" : "□"}</span>
-              <h2 className="section-heading">{activeTab === "upcoming" ? "No upcoming visits" : "No past visits yet"}</h2>
-              <p>{activeTab === "upcoming" ? "When you book your next appointment, it will show up here." : "Completed and cancelled appointments will be listed here."}</p>
-              {activeTab === "upcoming" && <Link className="button button-primary" href="/doctors">Find a doctor</Link>}
-            </div>
-          ) : (
-            <div className="appointment-list">
-              {visibleAppointments.map((appointment) => {
-                const isCancelled = appointment.status?.toLowerCase() === "cancelled";
-                const canManage = activeTab === "upcoming" && !isCancelled;
-                return (
-                  <article className="appointment-card card" key={appointment.id}>
-                    <div className="appointment-card-main">
-                      <div className="appointment-date-tile">
-                        <strong>{new Date(appointment.appointment_date).toLocaleDateString(undefined, { day: "2-digit" })}</strong>
-                        <span>{new Date(appointment.appointment_date).toLocaleDateString(undefined, { month: "short" })}</span>
-                      </div>
-                      <div className="appointment-main-copy">
-                        <p className="eyebrow">{appointment.category_name || "SPECIALIST CONSULTATION"}</p>
-                        <h2>{appointment.doctor_name}</h2>
-                        <p>{new Date(`${appointment.appointment_date}T12:00:00`).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" })} · {appointment.appointment_time.slice(0, 5)}</p>
-                      </div>
-                      <div className="appointment-card-fee">
-                        <span>Consultation fee</span>
-                        <strong>₹{appointment.fees}</strong>
-                        <div className="flex gap-1 justify-end mt-1">
-                          <span className={isCancelled ? "status-pill cancelled" : "status-pill"}>{appointment.status || "Booked"}</span>
-                          <span className={`status-pill ${appointment.payment_status === "paid" ? "status-completed" : "status-pending"}`}>
-                            {appointment.payment_status === "paid" ? "Paid" : "Unpaid"}
-                          </span>
+
+            {actionError && (
+              <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium rounded-xl">
+                {actionError}
+              </div>
+            )}
+
+            {loading ? (
+              <div className="bg-white p-16 rounded-3xl border border-gray-200 text-center shadow-sm">
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#0D9488] mb-2" />
+                <p className="text-xs font-medium text-gray-500">LOADING APPOINTMENT RECORDS...</p>
+              </div>
+            ) : visibleAppointments.length === 0 ? (
+              <div className="bg-white p-16 rounded-3xl border border-gray-200 text-center space-y-3 shadow-sm">
+                <Calendar className="w-12 h-12 text-gray-300 mx-auto" />
+                <h3 className="text-base font-semibold text-[#1E3A8A]">
+                  {activeTab === "upcoming" ? "No Upcoming Visits Scheduled" : "No Past Visits Found"}
+                </h3>
+                <p className="text-xs text-gray-500 max-w-sm mx-auto">
+                  {activeTab === "upcoming"
+                    ? "When you book your consultation with our clinicians, it will appear here."
+                    : "Completed consultations and previous visits will be recorded here."}
+                </p>
+                {activeTab === "upcoming" && (
+                  <Link
+                    href="/doctors"
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#0D9488] hover:bg-[#0F766E] text-white font-bold text-xs shadow-sm"
+                  >
+                    <span>Find a Clinician</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </Link>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {visibleAppointments.map((appointment) => {
+                  const isCancelled = appointment.status?.toLowerCase() === "cancelled";
+                  const canManage = activeTab === "upcoming" && !isCancelled;
+                  return (
+                    <article
+                      key={appointment.id}
+                      className="bg-white p-6 rounded-3xl border border-gray-200 hover:border-[#0D9488]/40 hover:shadow-md transition space-y-4 shadow-sm"
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div className="flex items-start gap-4">
+                          <div className="w-16 h-16 rounded-2xl bg-slate-50 border border-gray-200 flex flex-col items-center justify-center text-center p-2 shrink-0 font-mono">
+                            <strong className="text-lg font-black text-[#1E3A8A] leading-none">
+                              {new Date(appointment.appointment_date).toLocaleDateString(undefined, { day: "2-digit" })}
+                            </strong>
+                            <span className="text-[10px] text-gray-400 uppercase mt-0.5">
+                              {new Date(appointment.appointment_date).toLocaleDateString(undefined, { month: "short" })}
+                            </span>
+                          </div>
+
+                          <div className="space-y-1">
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-teal-50 text-[#0D9488] border border-teal-200">
+                              {appointment.category_name || "SPECIALIST CONSULTATION"}
+                            </span>
+                            <h3 className="text-lg font-bold text-[#1E3A8A]">
+                              {appointment.doctor_name}
+                            </h3>
+                            <p className="text-xs text-[#4B5563]">
+                              {new Date(`${appointment.appointment_date}T12:00:00`).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })} · {appointment.appointment_time.slice(0, 5)}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="text-left sm:text-right space-y-1.5">
+                          <div className="text-xs text-gray-500 font-medium">
+                            Fee: <strong className="text-[#1E3A8A] text-base font-bold">₹{appointment.fees}</strong>
+                          </div>
+                          <div className="flex gap-1.5 justify-start sm:justify-end flex-wrap">
+                            <span
+                              className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                                isCancelled
+                                  ? "bg-rose-50 text-rose-700 border border-rose-200"
+                                  : "bg-slate-100 text-[#4B5563] border border-gray-200"
+                              }`}
+                            >
+                              {appointment.status?.toUpperCase() || "BOOKED"}
+                            </span>
+                            <span
+                              className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                                appointment.payment_status === "paid"
+                                  ? "bg-teal-50 text-[#0D9488] border border-teal-200"
+                                  : "bg-amber-50 text-amber-700 border border-amber-200"
+                              }`}
+                            >
+                              {appointment.payment_status === "paid" ? "PAID ✓" : "UNPAID"}
+                            </span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    <div className="appointment-card-actions">
-                      <Link href={`/appointments/${appointment.id}`} className="appointment-text-action">View details <span aria-hidden="true">→</span></Link>
-                      {appointment.has_prescription && (
-                        <Link href={`/prescriptions/${appointment.id}`} className="appointment-text-action text-emerald-800 font-semibold">
-                          View Digital Rx ℞
-                        </Link>
+
+                      {/* Actions strip */}
+                      <div className="pt-3 border-t border-gray-100 flex flex-wrap items-center justify-between gap-3 text-xs">
+                        <div className="flex flex-wrap items-center gap-3">
+                          <Link
+                            href={`/appointments/${appointment.id}`}
+                            className="text-[#0D9488] hover:underline font-semibold inline-flex items-center gap-1 transition"
+                          >
+                            <span>View Details</span>
+                            <ChevronRight className="w-3.5 h-3.5" />
+                          </Link>
+
+                          {appointment.has_prescription && (
+                            <Link
+                              href={`/prescriptions/${appointment.id}`}
+                              className="text-[#0D9488] hover:underline font-semibold inline-flex items-center gap-1 transition"
+                            >
+                              <FileText className="w-3.5 h-3.5" />
+                              <span>View Digital Rx ℞</span>
+                            </Link>
+                          )}
+
+                          {appointment.payment_status !== "paid" && !isCancelled && (
+                            <Link
+                              href="/billing"
+                              className="text-[#1E3A8A] hover:underline font-semibold inline-flex items-center gap-1 transition"
+                            >
+                              <QrCode className="w-3.5 h-3.5" />
+                              <span>Pay on PhonePe (₹{appointment.fees}) ↗</span>
+                            </Link>
+                          )}
+                        </div>
+
+                        {canManage && (
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setActionError("");
+                                setReschedulingId(reschedulingId === appointment.id ? null : appointment.id);
+                              }}
+                              className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-[#4B5563] border border-gray-200 text-xs font-semibold transition"
+                            >
+                              {reschedulingId === appointment.id ? "Close Form" : "Reschedule Slot"}
+                            </button>
+
+                            <button
+                              type="button"
+                              disabled={busyId === appointment.id}
+                              onClick={() => cancelAppointment(appointment)}
+                              className="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-semibold transition"
+                            >
+                              {busyId === appointment.id ? "Cancelling…" : "Cancel Visit"}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      {reschedulingId === appointment.id && (
+                        <ReschedulePanel
+                          appointment={appointment}
+                          token={token}
+                          onClose={() => setReschedulingId(null)}
+                          onSaved={() => {
+                            setReschedulingId(null);
+                            setReload((current) => current + 1);
+                          }}
+                        />
                       )}
-                      {appointment.payment_status !== "paid" && !isCancelled && (
-                        <Link href="/billing" className="appointment-text-action text-amber-800 font-semibold">
-                          Pay ₹{appointment.fees} ↗
-                        </Link>
-                      )}
-                      {canManage && (
-                        <>
-                          <button type="button" className="appointment-text-action" onClick={() => {
-                            setActionError("");
-                            setReschedulingId(reschedulingId === appointment.id ? null : appointment.id);
-                          }}>
-                            {reschedulingId === appointment.id ? "Close reschedule" : "Reschedule"}
-                          </button>
-                          <button type="button" className="appointment-cancel-action" disabled={busyId === appointment.id} onClick={() => cancelAppointment(appointment)}>
-                            {busyId === appointment.id ? "Cancelling…" : "Cancel visit"}
-                          </button>
-                        </>
-                      )}
-                    </div>
-                    {reschedulingId === appointment.id && (
-                      <ReschedulePanel
-                        appointment={appointment}
-                        token={token}
-                        onClose={() => setReschedulingId(null)}
-                        onSaved={() => {
-                          setReschedulingId(null);
-                          setReload((current) => current + 1);
-                        }}
-                      />
-                    )}
-                  </article>
-                );
-              })}
-            </div>
-          )}
-        </>
-      )}
-    </main>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+          </>
+        )}
+
+      </div>
+    </div>
   );
 }

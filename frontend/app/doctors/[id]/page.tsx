@@ -178,7 +178,7 @@ function DoctorDetailContent() {
               {doctor.category_name} SPECIALIST
             </p>
             <h1 className="doctor-detail-name">{doctor.name}</h1>
-            <p className="text-sm font-semibold text-emerald-800 mb-2">
+            <p className="text-sm font-semibold text-[#0D9488] mb-2">
               {doctor.qualification}
             </p>
 
@@ -197,7 +197,7 @@ function DoctorDetailContent() {
                     />
                   ))}
                 </div>
-                <strong className="text-slate-900 font-bold">
+                <strong className="text-[#1E3A8A] font-bold">
                   {reviewsData.average_rating} / 5.0
                 </strong>
                 <span className="text-muted">
@@ -275,7 +275,7 @@ function DoctorDetailContent() {
             <button
               type="button"
               onClick={() => setShowReviewForm(!showReviewForm)}
-              className="px-4 py-2 bg-teal-800 hover:bg-teal-900 text-white font-medium text-xs rounded-xl shadow-sm flex items-center gap-1.5 transition-all self-start sm:self-auto"
+              className="px-4 py-2 bg-[#0D9488] hover:bg-[#0F766E] text-white font-semibold text-xs rounded-xl shadow-sm flex items-center gap-1.5 transition-all self-start sm:self-auto"
             >
               <Plus className="w-4 h-4" />
               <span>Write a Patient Review</span>
@@ -349,7 +349,7 @@ function DoctorDetailContent() {
                 <button
                   type="submit"
                   disabled={submittingReview}
-                  className="px-4 py-2 bg-teal-800 text-white font-bold text-xs rounded-lg shadow-sm"
+                  className="px-4 py-2 bg-[#0D9488] hover:bg-[#0F766E] text-white font-bold text-xs rounded-lg shadow-sm transition"
                 >
                   {submittingReview ? "Submitting..." : "Post Review"}
                 </button>

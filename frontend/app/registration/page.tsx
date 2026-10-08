@@ -105,7 +105,11 @@ export default function RegisterPage() {
   };
 
   const closePopup = () => {
+    const wasSuccess = popup?.type === "success";
     setPopup(null);
+    if (wasSuccess) {
+      window.location.href = "/login";
+    }
   };
 
   return (
@@ -281,7 +285,7 @@ export default function RegisterPage() {
               onClick={closePopup}
               className={`mt-6 w-full rounded-lg px-4 py-3 font-medium text-white transition ${
                 popup.type === "success"
-                  ? "bg-green-600 hover:bg-green-700"
+                  ? "bg-[#0D9488] hover:bg-[#0F766E]"
                   : "bg-red-600 hover:bg-red-700"
               }`}
             >

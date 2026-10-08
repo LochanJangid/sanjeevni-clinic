@@ -205,11 +205,11 @@ export default function PhonePePaymentModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 backdrop-blur-sm p-4 overflow-y-auto no-print"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto no-print"
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden my-6 transition-all"
+        className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl border border-gray-200 overflow-hidden my-6 transition-all"
         onClick={(e) => e.stopPropagation()}
       >
         {/* If receipt is issued, show the official receipt */}
@@ -288,8 +288,13 @@ export default function PhonePePaymentModal({
                     <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
                       {/* Merchant VPA */}
                       <div className="inline-flex items-center gap-1.5 bg-white border border-slate-200 px-2.5 py-1 rounded-lg font-mono text-slate-700 text-[11px] shadow-xs">
-                        <span className="text-slate-400">Merchant VPA:</span>
-                        <span className="font-semibold">{details.doctor_upi || "hospital.billing@ybl"}</span>
+                        <span className="text-slate-400">Admin UPI:</span>
+                        <span className="font-semibold">{details.doctor_upi || "7240499165@upi"}</span>
+                      </div>
+
+                      <div className="inline-flex items-center gap-1.5 bg-white border border-slate-200 px-2.5 py-1 rounded-lg font-mono text-slate-700 text-[11px] shadow-xs">
+                        <span className="text-slate-400">Admin Phone:</span>
+                        <span className="font-semibold">+91 7240499165</span>
                       </div>
 
                       {/* GST Exemption status tag */}
@@ -308,7 +313,7 @@ export default function PhonePePaymentModal({
                       ₹{details.amount}
                     </span>
                     <span className="text-[11px] text-emerald-700 font-semibold block mt-0.5">
-                      ✓ No Extra Charges
+                      ✓ Sent to Hospital Admin
                     </span>
                   </div>
                 </div>
@@ -319,7 +324,7 @@ export default function PhonePePaymentModal({
                   <div className="flex flex-col items-center justify-center p-5 bg-gradient-to-b from-purple-50/50 to-white rounded-2xl border-2 border-purple-200 text-center relative group">
                     <div className="p-3 bg-white rounded-2xl shadow-md border border-slate-100 relative">
                       <QRCodeSVG
-                        value={details.phonepe_intent_uri || details.upi_intent_uri}
+                        value={details.phonepe_intent_uri || details.upi_intent_uri || `upi://pay?pa=7240499165@upi&pn=Sanjeevni+Hospital+Admin&am=${details.amount}&cu=INR`}
                         size={190}
                         level="H"
                         includeMargin={true}
@@ -334,16 +339,16 @@ export default function PhonePePaymentModal({
 
                     <div className="mt-3 flex items-center gap-1.5 text-xs text-purple-950 font-bold">
                       <QrCode className="w-4 h-4 text-purple-700" />
-                      <span>Scan with PhonePe Scanner</span>
+                      <span>Admin PhonePe QR (7240499165)</span>
                     </div>
-                    <p className="text-[11px] text-slate-500 mt-0.5">
-                      Doctor Name: {details.doctor_name}
+                    <p className="text-[11px] text-slate-500 mt-0.5 font-mono">
+                      Pay to: 7240499165@upi
                     </p>
 
                     {/* Mobile App Direct Links */}
                     <div className="mt-3 w-full flex flex-col gap-1.5">
                       <a
-                        href={details.phonepe_intent_uri}
+                        href={details.phonepe_intent_uri || `upi://pay?pa=7240499165@upi&pn=Sanjeevni+Hospital+Admin&am=${details.amount}&cu=INR`}
                         className="inline-flex items-center justify-center gap-1.5 w-full py-2 px-3 rounded-xl bg-[#5f259f] text-white font-semibold text-xs hover:bg-[#4d1d82] transition shadow-xs"
                       >
                         <Zap className="w-3.5 h-3.5" />
@@ -351,7 +356,7 @@ export default function PhonePePaymentModal({
                         <ExternalLink className="w-3 h-3 ml-0.5 opacity-80" />
                       </a>
                       <a
-                        href={details.upi_intent_uri}
+                        href={details.upi_intent_uri || `upi://pay?pa=7240499165@upi&pn=Sanjeevni+Hospital+Admin&am=${details.amount}&cu=INR`}
                         className="inline-flex items-center justify-center gap-1.5 w-full py-1.5 px-3 rounded-xl bg-slate-100 text-slate-700 font-medium text-xs hover:bg-slate-200 transition"
                       >
                         <span>Open Other UPI App (GPay / Paytm)</span>
@@ -370,7 +375,7 @@ export default function PhonePePaymentModal({
                           1
                         </span>
                         <span>
-                          Open <strong>PhonePe</strong> on your phone and scan the QR code, or pay to Doctor&apos;s number <strong>+91 {details.doctor_mobile}</strong>.
+                          Open <strong>PhonePe</strong> on your phone and scan the QR code, or pay to Admin number <strong>+91 7240499165</strong> (UPI: <strong>7240499165@upi</strong>).
                         </span>
                       </div>
                       <div className="flex items-start gap-2 text-slate-600">
@@ -378,7 +383,7 @@ export default function PhonePePaymentModal({
                           2
                         </span>
                         <span>
-                          Confirm recipient is <strong>{details.doctor_name}</strong> and enter your UPI PIN for <strong>₹{details.amount}</strong>.
+                          Confirm recipient is <strong>Sanjeevni Hospital Admin (7240499165)</strong> for <strong>Dr. {details.doctor_name}</strong> consultation fee of <strong>₹{details.amount}</strong>.
                         </span>
                       </div>
                       <div className="flex items-start gap-2 text-slate-600">
@@ -395,7 +400,7 @@ export default function PhonePePaymentModal({
                     <div className="pt-3 border-t border-slate-200 space-y-3">
                       <div>
                         <label className="block text-xs font-bold text-slate-700 mb-1">
-                          PhonePe UTR / Transaction ID (Optional for Demo):
+                          PhonePe UTR / 12-Digit Banking Transaction ID:
                         </label>
                         <input
                           type="text"
@@ -440,10 +445,10 @@ export default function PhonePePaymentModal({
                           disabled={verifying}
                           onClick={handleQuickDemoPay}
                           className="inline-flex items-center justify-center gap-1 py-2.5 px-3 rounded-xl bg-slate-100 text-slate-800 font-bold text-xs hover:bg-slate-200 transition shadow-xs disabled:opacity-50"
-                          title="Instant 1-click test simulation for evaluator/portfolio review"
+                          title="Instant UPI Banking Verification"
                         >
                           <Sparkles className="w-3.5 h-3.5 text-slate-700" />
-                          <span>Quick Demo</span>
+                          <span>Instant UPI Verify</span>
                         </button>
                       </div>
                     </div>

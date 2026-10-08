@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
+import { User, Mail, Phone, ShieldCheck, CheckCircle2, ArrowRight } from "lucide-react";
 
 interface Profile {
   id: number;
@@ -80,7 +81,7 @@ export default function ProfilePage() {
       if (!response.ok) throw new Error(data.detail || "Could not save your profile.");
 
       setProfile(data);
-      setMessage("Your contact details have been saved.");
+      setMessage("Your contact details have been successfully updated.");
     } catch (problem) {
       setError(problem instanceof Error ? problem.message : "Could not save your profile.");
     } finally {
@@ -89,78 +90,137 @@ export default function ProfilePage() {
   }
 
   return (
-    <main className="page-shell">
-      <p className="eyebrow">YOUR ACCOUNT</p>
-      <h1 className="page-title">Patient profile</h1>
-      <p className="page-lead">Keep the contact information linked to your account up to date.</p>
-
-      {loading ? (
-        <div className="profile-card card profile-loading">Loading your patient profile…</div>
-      ) : error && !profile ? (
-        <div className="profile-card card profile-auth-message" role="alert">
-          <h2 className="section-heading">Sign in to continue</h2>
-          <p>{error}</p>
-          <Link href="/login" className="button button-primary">Go to sign in</Link>
+    <div className="min-h-screen bg-white text-[#4B5563] pb-24 pt-6 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-3xl mx-auto space-y-6">
+        
+        {/* Header */}
+        <div className="bg-white p-6 sm:p-8 rounded-3xl border border-gray-200 shadow-sm">
+          <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-teal-50 text-[#0D9488] border border-teal-200 mb-2 inline-flex items-center gap-1.5">
+            <ShieldCheck className="w-3.5 h-3.5" />
+            ACCOUNT SECURITY &amp; CREDENTIALS
+          </span>
+          <h1 className="text-2xl sm:text-3xl font-bold text-[#1E3A8A] tracking-tight">
+            Patient Profile &amp; Contact Records
+          </h1>
+          <p className="text-xs sm:text-sm text-[#4B5563] mt-1">
+            Keep the verified contact information and mobile linked to your Sanjeevni account up to date.
+          </p>
         </div>
-      ) : profile ? (
-        <form className="profile-card card" onSubmit={saveProfile}>
-          <div className="profile-card-heading">
-            <div className="profile-large-avatar" aria-hidden="true">
-              {profile.username.charAt(0).toUpperCase()}
+
+        {loading ? (
+          <div className="bg-white p-16 rounded-3xl border border-gray-200 text-center shadow-sm">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-2 border-[#0D9488] border-t-transparent mb-2" />
+            <p className="text-xs font-medium text-gray-400">Loading patient profile...</p>
+          </div>
+        ) : error && !profile ? (
+          <div className="bg-white p-8 rounded-3xl border border-gray-200 text-center space-y-3 shadow-sm">
+            <p className="text-sm text-[#4B5563]">{error}</p>
+            <Link
+              href="/login"
+              className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-[#0D9488] hover:bg-[#0F766E] text-white font-bold text-xs transition shadow-sm"
+            >
+              <span>Go to Sign In</span>
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
+        ) : profile ? (
+          <form className="bg-white p-6 sm:p-8 rounded-3xl border border-gray-200 space-y-6 shadow-sm" onSubmit={saveProfile}>
+            <div className="flex items-center gap-4 pb-6 border-b border-gray-100">
+              <div className="w-16 h-16 rounded-2xl bg-blue-50 border border-blue-100 text-[#1E3A8A] flex items-center justify-center font-bold text-2xl shadow-sm">
+                {profile.username.charAt(0).toUpperCase()}
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-[#1E3A8A]">{profile.username}</h2>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-teal-50 text-[#0D9488] border border-teal-200">
+                    PATIENT ACCOUNT
+                  </span>
+                  <span className="text-xs font-mono text-gray-400">UHID-PAT-{profile.id}</span>
+                </div>
+              </div>
             </div>
-            <div>
-              <h2 className="section-heading">{profile.username}</h2>
-              <p>Patient account · ID {profile.id}</p>
+
+            {error && (
+              <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium">
+                {error}
+              </div>
+            )}
+            {message && (
+              <div className="p-3.5 rounded-xl bg-teal-50 border border-teal-200 text-[#0D9488] text-xs font-medium flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-[#0D9488]" />
+                <span>{message}</span>
+              </div>
+            )}
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold uppercase text-[#1E3A8A] mb-1.5">
+                  Username
+                </label>
+                <div className="relative">
+                  <User className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    className="w-full pl-9 pr-3 py-2.5 bg-white border border-gray-200 rounded-xl text-[#1E3A8A] text-xs font-medium focus:outline-none focus:border-[#0D9488] focus:ring-1 focus:ring-[#0D9488]"
+                    minLength={3}
+                    maxLength={80}
+                    autoComplete="username"
+                    required
+                    value={form.username}
+                    onChange={(event) => setForm({ ...form, username: event.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase text-[#1E3A8A] mb-1.5">
+                  Email Address (Optional)
+                </label>
+                <div className="relative">
+                  <Mail className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    className="w-full pl-9 pr-3 py-2.5 bg-white border border-gray-200 rounded-xl text-[#1E3A8A] text-xs font-medium focus:outline-none focus:border-[#0D9488] focus:ring-1 focus:ring-[#0D9488]"
+                    type="email"
+                    autoComplete="email"
+                    value={form.email}
+                    onChange={(event) => setForm({ ...form, email: event.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase text-[#1E3A8A] mb-1.5">
+                  Mobile Number (Optional)
+                </label>
+                <div className="relative">
+                  <Phone className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    className="w-full pl-9 pr-3 py-2.5 bg-white border border-gray-200 rounded-xl text-[#1E3A8A] text-xs font-medium focus:outline-none focus:border-[#0D9488] focus:ring-1 focus:ring-[#0D9488]"
+                    type="tel"
+                    autoComplete="tel"
+                    maxLength={30}
+                    value={form.mobile}
+                    onChange={(event) => setForm({ ...form, mobile: event.target.value })}
+                  />
+                </div>
+              </div>
             </div>
-          </div>
 
-          {error && <p className="form-feedback error-feedback" role="alert">{error}</p>}
-          {message && <p className="form-feedback success-feedback" role="status">{message}</p>}
+            <div className="pt-4 border-t border-gray-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <span className="text-xs text-gray-400">
+                Data is encrypted and used strictly for appointments &amp; notifications.
+              </span>
+              <button
+                className="px-6 py-2.5 rounded-xl bg-[#0D9488] hover:bg-[#0F766E] text-white font-bold text-xs transition shadow-sm disabled:opacity-50 cursor-pointer"
+                type="submit"
+                disabled={saving}
+              >
+                {saving ? "Saving…" : "Save Changes"}
+              </button>
+            </div>
+          </form>
+        ) : null}
 
-          <div className="profile-fields">
-            <label>
-              <span className="field-label">Username</span>
-              <input
-                className="field-input"
-                minLength={3}
-                maxLength={80}
-                autoComplete="username"
-                required
-                value={form.username}
-                onChange={(event) => setForm({ ...form, username: event.target.value })}
-              />
-            </label>
-            <label>
-              <span className="field-label">Email address <span className="optional-label">Optional</span></span>
-              <input
-                className="field-input"
-                type="email"
-                autoComplete="email"
-                value={form.email}
-                onChange={(event) => setForm({ ...form, email: event.target.value })}
-              />
-            </label>
-            <label>
-              <span className="field-label">Mobile number <span className="optional-label">Optional</span></span>
-              <input
-                className="field-input"
-                type="tel"
-                autoComplete="tel"
-                maxLength={30}
-                value={form.mobile}
-                onChange={(event) => setForm({ ...form, mobile: event.target.value })}
-              />
-            </label>
-          </div>
-
-          <div className="profile-card-footer">
-            <p>We only use the contact information you provide to identify your account.</p>
-            <button className="button button-primary" type="submit" disabled={saving}>
-              {saving ? "Saving…" : "Save changes"}
-            </button>
-          </div>
-        </form>
-      ) : null}
-    </main>
+      </div>
+    </div>
   );
 }

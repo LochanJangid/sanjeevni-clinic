@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 
 type Message = {
   role: "user" | "assistant";
@@ -82,9 +83,16 @@ export default function AssistantWidget() {
           <div className="assistant-panel-header">
             <span className="assistant-brand-mark" aria-hidden="true">+</span>
             <span className="assistant-heading">
-              <strong>Sanjeevni assistant</strong>
-              <small>Website help & general questions</small>
+              <strong>Sanjeevni Assistant</strong>
+              <small>Clinical AI triage & guidance</small>
             </span>
+            <Link
+              href="/chat"
+              className="text-[11px] font-bold text-emerald-600 hover:text-emerald-700 underline mr-2 shrink-0"
+              title="Open full AI chat application"
+            >
+              Full App ↗
+            </Link>
             <button
               type="button"
               className="assistant-close"

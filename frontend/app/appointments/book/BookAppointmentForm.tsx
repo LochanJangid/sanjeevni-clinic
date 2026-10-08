@@ -152,7 +152,7 @@ export default function BookAppointmentForm() {
 
     const token = localStorage.getItem("access_token");
     if (!token) {
-      setBookingError("Please sign in or select a demo role from the top banner to book your appointment.");
+      setBookingError("Please sign in to your patient account to book your consultation.");
       return;
     }
 
@@ -207,18 +207,18 @@ export default function BookAppointmentForm() {
 
   if (!doctorIdParam || !Number.isSafeInteger(doctorId) || doctorId < 1) {
     return (
-      <main className="min-h-screen bg-slate-50 dark:bg-slate-950 py-12 px-4">
-        <div className="max-w-lg mx-auto bg-white dark:bg-slate-900 rounded-3xl p-8 border border-slate-200 dark:border-slate-800 text-center shadow-lg space-y-4">
-          <div className="w-16 h-16 rounded-2xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 flex items-center justify-center mx-auto">
+      <main className="min-h-screen bg-white text-[#4B5563] py-12 px-4">
+        <div className="max-w-lg mx-auto bg-white rounded-3xl p-8 border border-gray-200 text-center shadow-sm space-y-4">
+          <div className="w-16 h-16 rounded-2xl bg-teal-50 text-[#0D9488] flex items-center justify-center mx-auto">
             <Stethoscope className="w-8 h-8" />
           </div>
-          <h1 className="text-2xl font-black text-slate-900 dark:text-white">Select a Specialist First</h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400">
+          <h1 className="text-2xl font-black text-[#1E3A8A]">Select a Specialist First</h1>
+          <p className="text-sm text-[#4B5563]">
             Please browse our clinician directory to select a doctor and view their live bookable consultation hours.
           </p>
           <Link
             href="/doctors"
-            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md transition"
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-[#0D9488] hover:bg-[#0F766E] text-white font-bold text-xs shadow-sm transition"
           >
             <ArrowLeft className="w-4 h-4" />
             <span>Browse Doctor Directory</span>
@@ -233,19 +233,19 @@ export default function BookAppointmentForm() {
   const dayAfterStr = getLocalDateString(2);
 
   return (
-    <main className="min-h-screen bg-slate-50/50 dark:bg-slate-950 py-8 px-4 sm:px-6 lg:px-8">
+    <main className="min-h-screen bg-white text-[#4B5563] py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-6xl mx-auto space-y-6">
         {/* Navigation Breadcrumb */}
         <div className="flex items-center justify-between">
           <Link
             href="/doctors"
-            className="inline-flex items-center gap-2 text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 transition"
+            className="inline-flex items-center gap-2 text-xs font-bold text-[#4B5563] hover:text-[#0D9488] transition"
           >
             <ArrowLeft className="w-4 h-4" />
             <span>Back to Clinician Directory</span>
           </Link>
 
-          <span className="text-xs font-semibold text-slate-400">
+          <span className="text-xs font-semibold text-gray-400">
             Step 1 of 2: Time Slot &amp; Payment Preference
           </span>
         </div>
@@ -254,16 +254,16 @@ export default function BookAppointmentForm() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           {/* Left Form: Date & Slot Selection */}
           <div className="lg:col-span-7 space-y-6">
-            <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-800 shadow-sm space-y-6">
+            <div className="bg-white rounded-3xl p-6 sm:p-8 border border-gray-200 shadow-sm space-y-6">
               <div>
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-xs font-bold uppercase tracking-wider mb-2">
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-50 text-[#0D9488] border border-teal-200 text-xs font-bold uppercase tracking-wider mb-2">
                   <Clock className="w-3.5 h-3.5" />
                   <span>Real-Time Appointment Scheduling</span>
                 </div>
-                <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
+                <h1 className="text-2xl sm:text-3xl font-black text-[#1E3A8A] tracking-tight">
                   Choose Date &amp; Consultation Time
                 </h1>
-                <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
+                <p className="text-xs sm:text-sm text-[#4B5563] mt-1">
                   Select your preferred day. Real-time availability locks each slot for 30 minutes to eliminate clinic waiting times.
                 </p>
               </div>
@@ -271,7 +271,7 @@ export default function BookAppointmentForm() {
               <form onSubmit={bookAppointment} className="space-y-6">
                 {/* Quick Date Chips */}
                 <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block">
+                  <label className="text-xs font-bold uppercase tracking-wider text-gray-500 block">
                     1. Select Visit Date
                   </label>
 
@@ -281,8 +281,8 @@ export default function BookAppointmentForm() {
                       onClick={() => setDate(todayStr)}
                       className={`p-3 rounded-2xl text-xs font-bold border transition text-center ${
                         date === todayStr
-                          ? "bg-emerald-600 text-white border-emerald-600 shadow-md shadow-emerald-600/20"
-                          : "bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-slate-300"
+                          ? "bg-[#0D9488] text-white border-[#0D9488] shadow-sm"
+                          : "bg-slate-50 text-[#4B5563] border-gray-200 hover:border-gray-300"
                       }`}
                     >
                       <span className="block text-[10px] font-medium opacity-80">TODAY</span>
@@ -294,8 +294,8 @@ export default function BookAppointmentForm() {
                       onClick={() => setDate(tomorrowStr)}
                       className={`p-3 rounded-2xl text-xs font-bold border transition text-center ${
                         date === tomorrowStr
-                          ? "bg-emerald-600 text-white border-emerald-600 shadow-md shadow-emerald-600/20"
-                          : "bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-slate-300"
+                          ? "bg-[#0D9488] text-white border-[#0D9488] shadow-sm"
+                          : "bg-slate-50 text-[#4B5563] border-gray-200 hover:border-gray-300"
                       }`}
                     >
                       <span className="block text-[10px] font-medium opacity-80">TOMORROW</span>
@@ -312,8 +312,8 @@ export default function BookAppointmentForm() {
                       onClick={() => setDate(dayAfterStr)}
                       className={`p-3 rounded-2xl text-xs font-bold border transition text-center ${
                         date === dayAfterStr
-                          ? "bg-emerald-600 text-white border-emerald-600 shadow-md shadow-emerald-600/20"
-                          : "bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-slate-300"
+                          ? "bg-[#0D9488] text-white border-[#0D9488] shadow-sm"
+                          : "bg-slate-50 text-[#4B5563] border-gray-200 hover:border-gray-300"
                       }`}
                     >
                       <span className="block text-[10px] font-medium opacity-80">IN 2 DAYS</span>
@@ -333,7 +333,7 @@ export default function BookAppointmentForm() {
                       min={minDate}
                       value={date}
                       onChange={(e) => setDate(e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                      className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-gray-200 text-xs font-semibold text-[#1E3A8A] focus:outline-none focus:ring-2 focus:ring-[#0D9488]/30 focus:border-[#0D9488]"
                       required
                     />
                   </div>
@@ -342,31 +342,31 @@ export default function BookAppointmentForm() {
                 {/* Available Slots Picker */}
                 <div className="space-y-3 pt-2">
                   <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    <label className="text-xs font-bold uppercase tracking-wider text-gray-500">
                       2. Choose 30-Minute Time Slot
                     </label>
                     {slots.length > 0 && (
-                      <span className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold">
+                      <span className="text-xs text-[#0D9488] font-semibold">
                         {slots.length} available slots
                       </span>
                     )}
                   </div>
 
                   {!date ? (
-                    <div className="p-6 rounded-2xl bg-slate-50 dark:bg-slate-800/50 text-center text-xs text-slate-500">
+                    <div className="p-6 rounded-2xl bg-slate-50 text-center text-xs text-gray-500">
                       Select a date above to check doctor availability.
                     </div>
                   ) : loadingSlots ? (
-                    <div className="p-8 rounded-2xl bg-slate-50 dark:bg-slate-800/50 text-center space-y-2">
-                      <div className="w-6 h-6 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto" />
-                      <p className="text-xs text-slate-500 font-medium">Checking live appointment availability…</p>
+                    <div className="p-8 rounded-2xl bg-slate-50 text-center space-y-2">
+                      <div className="w-6 h-6 border-2 border-[#0D9488] border-t-transparent rounded-full animate-spin mx-auto" />
+                      <p className="text-xs text-gray-500 font-medium">Checking live appointment availability…</p>
                     </div>
                   ) : slotError ? (
-                    <div className="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 text-rose-700 text-xs font-semibold">
+                    <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold">
                       {slotError}
                     </div>
                   ) : slots.length === 0 ? (
-                    <div className="p-8 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 text-amber-800 dark:text-amber-300 text-center space-y-1 text-xs">
+                    <div className="p-8 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 text-center space-y-1 text-xs">
                       <strong>No available slots for this date</strong>
                       <p className="text-[11px] opacity-80">
                         The doctor&apos;s schedule is full or offline for this day. Please pick another date.
@@ -377,7 +377,7 @@ export default function BookAppointmentForm() {
                       {/* Morning Slots */}
                       {groupedSlots.morning.length > 0 && (
                         <div>
-                          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">
+                          <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">
                             🌅 Morning (09:00 AM – 12:00 PM)
                           </span>
                           <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
@@ -388,8 +388,8 @@ export default function BookAppointmentForm() {
                                 onClick={() => setTime(slot)}
                                 className={`py-2 px-3 rounded-xl text-xs font-bold border transition text-center ${
                                   time === slot
-                                    ? "bg-emerald-600 text-white border-emerald-600 shadow-md shadow-emerald-600/20 scale-102"
-                                    : "bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:border-emerald-400"
+                                    ? "bg-[#0D9488] text-white border-[#0D9488] shadow-sm scale-102"
+                                    : "bg-slate-50 text-[#4B5563] border-gray-200 hover:border-[#0D9488]"
                                 }`}
                               >
                                 {slot}
@@ -402,7 +402,7 @@ export default function BookAppointmentForm() {
                       {/* Afternoon Slots */}
                       {groupedSlots.afternoon.length > 0 && (
                         <div>
-                          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">
+                          <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">
                             ☀️ Afternoon (12:00 PM – 04:00 PM)
                           </span>
                           <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
@@ -413,8 +413,8 @@ export default function BookAppointmentForm() {
                                 onClick={() => setTime(slot)}
                                 className={`py-2 px-3 rounded-xl text-xs font-bold border transition text-center ${
                                   time === slot
-                                    ? "bg-emerald-600 text-white border-emerald-600 shadow-md shadow-emerald-600/20 scale-102"
-                                    : "bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:border-emerald-400"
+                                    ? "bg-[#0D9488] text-white border-[#0D9488] shadow-sm scale-102"
+                                    : "bg-slate-50 text-[#4B5563] border-gray-200 hover:border-[#0D9488]"
                                 }`}
                               >
                                 {slot}
@@ -427,7 +427,7 @@ export default function BookAppointmentForm() {
                       {/* Evening Slots */}
                       {groupedSlots.evening.length > 0 && (
                         <div>
-                          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">
+                          <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">
                             🌇 Evening (04:00 PM – 07:00 PM)
                           </span>
                           <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
@@ -438,8 +438,8 @@ export default function BookAppointmentForm() {
                                 onClick={() => setTime(slot)}
                                 className={`py-2 px-3 rounded-xl text-xs font-bold border transition text-center ${
                                   time === slot
-                                    ? "bg-emerald-600 text-white border-emerald-600 shadow-md shadow-emerald-600/20 scale-102"
-                                    : "bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:border-emerald-400"
+                                    ? "bg-[#0D9488] text-white border-[#0D9488] shadow-sm scale-102"
+                                    : "bg-slate-50 text-[#4B5563] border-gray-200 hover:border-[#0D9488]"
                                 }`}
                               >
                                 {slot}
@@ -454,7 +454,7 @@ export default function BookAppointmentForm() {
 
                 {/* Payment & Settlement Method Preference */}
                 <div className="space-y-2 pt-2">
-                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block">
+                  <label className="text-xs font-bold uppercase tracking-wider text-gray-500 block">
                     3. Payment Settlement Preference
                   </label>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -463,18 +463,18 @@ export default function BookAppointmentForm() {
                       onClick={() => setPaymentPreference("phonepe")}
                       className={`p-3.5 rounded-2xl border text-left transition flex items-start gap-3 ${
                         paymentPreference === "phonepe"
-                          ? "bg-purple-50 dark:bg-purple-950/30 border-purple-500 shadow-sm"
-                          : "bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-slate-300"
+                          ? "bg-purple-50 border-purple-500 shadow-sm"
+                          : "bg-slate-50 border-gray-200 hover:border-gray-300"
                       }`}
                     >
                       <div className="w-8 h-8 rounded-xl bg-[#5f259f] text-white flex items-center justify-center font-black text-xs shrink-0">
                         पे
                       </div>
                       <div>
-                        <strong className="text-xs font-bold text-slate-900 dark:text-white block">
+                        <strong className="text-xs font-bold text-[#1E3A8A] block">
                           PhonePe Dynamic UPI QR
                         </strong>
-                        <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                        <span className="text-[11px] text-gray-500">
                           Instant verified GST receipt &amp; automated OPD check-in.
                         </span>
                       </div>
@@ -485,18 +485,18 @@ export default function BookAppointmentForm() {
                       onClick={() => setPaymentPreference("counter")}
                       className={`p-3.5 rounded-2xl border text-left transition flex items-start gap-3 ${
                         paymentPreference === "counter"
-                          ? "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-500 shadow-sm"
-                          : "bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-slate-300"
+                          ? "bg-teal-50 border-[#0D9488] shadow-sm"
+                          : "bg-slate-50 border-gray-200 hover:border-gray-300"
                       }`}
                     >
-                      <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-black text-xs shrink-0">
+                      <div className="w-8 h-8 rounded-xl bg-[#0D9488] text-white flex items-center justify-center font-black text-xs shrink-0">
                         ₹
                       </div>
                       <div>
-                        <strong className="text-xs font-bold text-slate-900 dark:text-white block">
+                        <strong className="text-xs font-bold text-[#1E3A8A] block">
                           Hospital Reception Counter
                         </strong>
-                        <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                        <span className="text-[11px] text-gray-500">
                           Pay cash or POS card when reporting to reception on visit day.
                         </span>
                       </div>
@@ -506,14 +506,14 @@ export default function BookAppointmentForm() {
 
                 {/* Error and Message Banners */}
                 {bookingError && (
-                  <div className="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/40 text-rose-700 dark:text-rose-300 text-xs font-semibold flex items-center gap-2">
+                  <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold flex items-center gap-2">
                     <Info className="w-4 h-4 shrink-0" />
                     <span>{bookingError}</span>
                   </div>
                 )}
                 {message && (
-                  <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/40 text-emerald-700 dark:text-emerald-300 text-xs font-semibold flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
+                  <div className="p-4 rounded-2xl bg-teal-50 border border-teal-200 text-[#0D9488] text-xs font-semibold flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 shrink-0 text-[#0D9488]" />
                     <span>{message}</span>
                   </div>
                 )}
@@ -522,7 +522,7 @@ export default function BookAppointmentForm() {
                 <button
                   type="submit"
                   disabled={submitting || !time || loadingSlots}
-                  className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-black text-sm shadow-xl shadow-emerald-600/20 transition transform hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-2"
+                  className="w-full py-4 px-6 rounded-2xl bg-[#0D9488] hover:bg-[#0F766E] disabled:opacity-50 disabled:cursor-not-allowed text-white font-black text-sm shadow-sm transition flex items-center justify-center gap-2"
                 >
                   {submitting ? (
                     <>
@@ -538,7 +538,7 @@ export default function BookAppointmentForm() {
                   )}
                 </button>
 
-                <p className="text-[11px] text-center text-slate-400 leading-relaxed">
+                <p className="text-[11px] text-center text-gray-400 leading-relaxed">
                   🔒 Encrypted transaction under DPDP Act 2023. Real-time slot serialized inside PostgreSQL to prevent overlap.
                 </p>
               </form>
@@ -547,23 +547,23 @@ export default function BookAppointmentForm() {
 
           {/* Right Summary Sidebar Card */}
           <aside className="lg:col-span-5 space-y-6 lg:sticky lg:top-24">
-            <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-800 shadow-sm space-y-6">
-              <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
-                <span className="text-xs font-black uppercase tracking-wider text-slate-400">
+            <div className="bg-white rounded-3xl p-6 sm:p-8 border border-gray-200 shadow-sm space-y-6">
+              <div className="flex items-center justify-between pb-4 border-b border-gray-100">
+                <span className="text-xs font-bold uppercase tracking-wider text-gray-400">
                   Consultation Summary
                 </span>
-                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400">
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-teal-50 text-[#0D9488] border border-teal-200">
                   Live Verified
                 </span>
               </div>
 
               {loadingDoctor ? (
-                <div className="py-8 text-center text-xs text-slate-400">Loading clinician credentials…</div>
+                <div className="py-8 text-center text-xs text-gray-400">Loading clinician credentials…</div>
               ) : doctor ? (
                 <div className="space-y-4">
                   {/* Doctor Mini-Card */}
                   <div className="flex items-center gap-3">
-                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-500 text-white font-black text-lg flex items-center justify-center shadow-md">
+                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-[#1E3A8A] to-[#0D9488] text-white font-black text-lg flex items-center justify-center shadow-sm">
                       {doctor.name
                         .trim()
                         .split(/\s+/)
@@ -572,30 +572,30 @@ export default function BookAppointmentForm() {
                         .join("")}
                     </div>
                     <div>
-                      <h2 className="text-base font-black text-slate-900 dark:text-white">
+                      <h2 className="text-base font-black text-[#1E3A8A]">
                         {doctor.name}
                       </h2>
-                      <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                      <p className="text-xs font-semibold text-[#0D9488]">
                         {doctor.category_name || "Specialist Consultant"}
                       </p>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                      <p className="text-[11px] text-gray-400">
                         {doctor.qualification} · {doctor.experience_years}y exp
                       </p>
                     </div>
                   </div>
 
                   {/* Chamber Location */}
-                  <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 text-xs flex items-center gap-2 text-slate-600 dark:text-slate-300">
-                    <MapPin className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <div className="p-3 rounded-2xl bg-slate-50 border border-gray-100 text-xs flex items-center gap-2 text-[#4B5563]">
+                    <MapPin className="w-4 h-4 text-[#0D9488] shrink-0" />
                     <span>{doctor.clinic_address || "OPD Chamber 102 · Ground Floor East Wing"}</span>
                   </div>
 
                   {/* Selected Date & Time Pill */}
-                  <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 space-y-1">
-                    <span className="text-[10px] uppercase font-bold text-emerald-800 dark:text-emerald-400 block tracking-wider">
+                  <div className="p-4 rounded-2xl bg-teal-50 border border-teal-200 space-y-1">
+                    <span className="text-[10px] uppercase font-bold text-[#0D9488] block tracking-wider">
                       Selected Slot
                     </span>
-                    <strong className="text-sm font-black text-emerald-950 dark:text-emerald-200 block">
+                    <strong className="text-sm font-black text-[#1E3A8A] block">
                       {date
                         ? new Date(`${date}T12:00:00`).toLocaleDateString(undefined, {
                             weekday: "short",
@@ -607,28 +607,28 @@ export default function BookAppointmentForm() {
                       {" · "}
                       {time || "Choose Time"}
                     </strong>
-                    <span className="text-[11px] text-emerald-700 dark:text-emerald-300 block">
+                    <span className="text-[11px] text-teal-800 block">
                       Duration: 30-Minute In-Person Consultation
                     </span>
                   </div>
 
                   {/* Fee Calculation Breakdown */}
-                  <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800 text-xs">
-                    <div className="flex justify-between text-slate-600 dark:text-slate-400">
+                  <div className="space-y-2 pt-2 border-t border-gray-100 text-xs">
+                    <div className="flex justify-between text-gray-500">
                       <span>Doctor Consultation Fee:</span>
-                      <span className="font-semibold text-slate-900 dark:text-white">₹{doctor.fees}</span>
+                      <span className="font-semibold text-[#1E3A8A]">₹{doctor.fees}</span>
                     </div>
-                    <div className="flex justify-between text-slate-600 dark:text-slate-400">
+                    <div className="flex justify-between text-gray-500">
                       <span>Platform Booking Convenience Fee:</span>
-                      <span className="font-semibold text-emerald-600 dark:text-emerald-400">₹0 (Free)</span>
+                      <span className="font-semibold text-[#0D9488]">₹0 (Free)</span>
                     </div>
-                    <div className="flex justify-between text-slate-600 dark:text-slate-400">
+                    <div className="flex justify-between text-gray-500">
                       <span>Statutory Healthcare GST:</span>
-                      <span className="font-semibold text-emerald-600 dark:text-emerald-400">0% (Entry 74 Exempt)</span>
+                      <span className="font-semibold text-[#0D9488]">0% (Entry 74 Exempt)</span>
                     </div>
-                    <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex justify-between items-baseline">
-                      <span className="font-bold text-slate-900 dark:text-white">Total Amount Due:</span>
-                      <strong className="text-2xl font-black text-emerald-700 dark:text-emerald-400">
+                    <div className="pt-2 border-t border-gray-100 flex justify-between items-baseline">
+                      <span className="font-bold text-[#1E3A8A]">Total Amount Due:</span>
+                      <strong className="text-2xl font-black text-[#1E3A8A]">
                         ₹{doctor.fees}
                       </strong>
                     </div>
@@ -637,13 +637,13 @@ export default function BookAppointmentForm() {
               ) : null}
 
               {/* Guarantees Box */}
-              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 text-xs space-y-2 text-slate-600 dark:text-slate-400">
+              <div className="p-4 rounded-2xl bg-slate-50 border border-gray-100 text-xs space-y-2 text-[#4B5563]">
                 <div className="flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                  <ShieldCheck className="w-4 h-4 text-[#0D9488]" />
                   <span>Free cancellation up to 2 hours before slot</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                  <CheckCircle2 className="w-4 h-4 text-[#0D9488]" />
                   <span>Instant SMS token &amp; digital prescription link</span>
                 </div>
               </div>

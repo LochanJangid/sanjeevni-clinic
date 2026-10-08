@@ -6,7 +6,6 @@ import { useState, useEffect } from "react";
 import { 
   parseTokenClaims, 
   clearAuthSession, 
-  loginAsDemoRole, 
   TokenClaims 
 } from "../lib/auth";
 import { 
@@ -30,7 +29,11 @@ import {
   Menu, 
   X,
   Globe,
-  ArrowLeft
+  MessageSquare,
+  Building2,
+  Calendar,
+  UserCheck,
+  CreditCard
 } from "lucide-react";
 import { getStoredHospitalBranding, HospitalBranding } from "../lib/hospital";
 
@@ -38,10 +41,8 @@ export default function SiteHeader() {
   const pathname = usePathname();
   const router = useRouter();
   const [claims, setClaims] = useState<TokenClaims | null>(null);
-  const [switching, setSwitching] = useState(false);
   const [lang, setLang] = useState<Language>("en");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [featuresDropdownOpen, setFeaturesDropdownOpen] = useState(false);
   const [branding, setBranding] = useState<HospitalBranding>({
     name: "Sanjeevni Hospital",
     city: "Jaipur",
@@ -56,15 +57,8 @@ export default function SiteHeader() {
     const handleBranding = (e: any) => {
       if (e.detail) setBranding(e.detail);
     };
-    const handleName = (e: any) => {
-      if (e.detail) setBranding((prev) => ({ ...prev, name: e.detail }));
-    };
     window.addEventListener("hospital-branding-change", handleBranding);
-    window.addEventListener("hospital-name-change", handleName);
-    return () => {
-      window.removeEventListener("hospital-branding-change", handleBranding);
-      window.removeEventListener("hospital-name-change", handleName);
-    };
+    return () => window.removeEventListener("hospital-branding-change", handleBranding);
   }, []);
 
   useEffect(() => {
@@ -103,48 +97,22 @@ export default function SiteHeader() {
     router.push("/login");
   }
 
-  async function handleDemoSwitch(targetRole: "patient" | "doctor" | "admin") {
-    setSwitching(true);
-    try {
-      const ok = await loginAsDemoRole(targetRole);
-      if (ok) {
-        if (targetRole === "admin") router.push("/admin");
-        else if (targetRole === "doctor") router.push("/doctor-portal");
-        else router.push("/dashboard");
-      }
-    } finally {
-      setSwitching(false);
-    }
-  }
-
-  // Quick modules menu
-  const clinicalModules = [
-    { href: "/symptom-checker", label: "AI Symptom Triage", icon: Sparkles, desc: "Evidence-based triage" },
-    { href: "/lab-reports", label: "Diagnostic Lab Reports", icon: FlaskConical, desc: "Pathology & blood tests" },
-    { href: "/teleconsult", label: "Video Teleconsultation", icon: Video, desc: "Virtual doctor visits" },
-    { href: "/vitals", label: "Patient Vitals & EHR", icon: Activity, desc: "BP, pulse & biomarkers" },
-    { href: "/beds", label: "Hospital Bed Occupancy", icon: Bed, desc: "Inpatient IPD wards" },
-    { href: "/pharmacy", label: "Clinic Pharmacy", icon: Pill, desc: "Dispensary & orders" },
-    { href: "/opd-queue", label: "OPD Waiting Room TV", icon: Tv, desc: "Live token display" },
-    { href: "/vaccinations", label: "Vaccine Passport", icon: Syringe, desc: "Immunization records" },
-  ];
-
   return (
     <>
-      {/* Top Emergency SOS Strip */}
+      {/* Top Emergency & Dispatch Strip */}
       <div className="bg-gradient-to-r from-red-600 to-rose-700 text-white text-xs py-1.5 px-4 font-semibold">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-white animate-ping" />
-            <span>24x7 Ambulance &amp; Trauma Hotline:</span>
+            <span>24x7 Ambulance &amp; Trauma Dispatch:</span>
             <a href="tel:+919999108108" className="underline font-bold tracking-wider hover:text-red-100">
               +91 9999-108-108
             </a>
           </div>
 
           <div className="flex items-center gap-4">
-            <Link href="/emergency" className="hidden sm:inline-block bg-white/20 hover:bg-white/30 px-2 py-0.5 rounded text-[11px] transition-colors">
-              Emergency Command Center →
+            <Link href="/emergency" className="hidden sm:inline-block bg-white/20 hover:bg-white/30 px-2.5 py-0.5 rounded text-[11px] transition-colors">
+              Emergency Trauma Bay →
             </Link>
             <button
               type="button"
@@ -158,161 +126,268 @@ export default function SiteHeader() {
         </div>
       </div>
 
-      {/* SaaS Demo Role Bar */}
-      <div className="saas-demo-bar">
-        <div className="saas-demo-bar-inner">
-          <div className="saas-badge-group">
-            <span className="saas-pulse-dot" />
-            <span className="saas-platform-label">{hospitalName.toUpperCase()} OS</span>
-          </div>
-          <div className="saas-switcher flex items-center gap-2">
-            <span className="switcher-text">{t.selectRole}:</span>
-            <button
-              type="button"
-              disabled={switching}
-              onClick={() => handleDemoSwitch("patient")}
-              className={`switcher-pill ${role === "patient" ? "active" : ""}`}
-            >
-              {t.patient} Portal
-            </button>
-            <button
-              type="button"
-              disabled={switching}
-              onClick={() => handleDemoSwitch("doctor")}
-              className={`switcher-pill ${role === "doctor" ? "active" : ""}`}
-            >
-              {t.doctor} Workspace
-            </button>
-            <button
-              type="button"
-              disabled={switching}
-              onClick={() => handleDemoSwitch("admin")}
-              className={`switcher-pill ${role === "admin" ? "active" : ""}`}
-            >
-              Hospital {t.adminRole}
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Header */}
-      <header className="site-header">
-        <div className="site-header-inner">
-          <Link className="brand" href="/dashboard" aria-label="Hospital home">
-            <span className="brand-mark" aria-hidden="true">
-              {branding.logoType === "image" ? (
-                <img src={branding.logo} alt="Logo" className="w-5 h-5 object-contain rounded" />
-              ) : (
-                branding.logo || "+"
-              )}
+      {/* Main Header - Navy Blue (#1E3A8A) Secondary Authority Theme */}
+      <header className="site-header sticky top-0 z-50 bg-[#1E3A8A] border-b border-blue-950/60 shadow-md">
+        <div className="site-header-inner max-w-7xl mx-auto flex items-center justify-between px-4 py-3">
+          <Link className="brand flex items-center gap-2.5" href="/" aria-label="Sanjeevni Clinic">
+            <span className="w-9 h-9 rounded-xl bg-[#0D9488] text-white flex items-center justify-center font-black text-lg shadow-sm shrink-0">
+              ✚
             </span>
             <span>
-              <span className="brand-name">{hospitalName}</span>
-              <span className="brand-caption">CLINIC OS</span>
+              <span className="block text-base font-black text-white tracking-tight leading-none">SANJEEVNI CLINIC</span>
+              <span className="block text-[10px] font-mono text-teal-200 tracking-wider font-semibold">SUPER-SPECIALTY PAVILION</span>
             </span>
           </Link>
 
-          {/* Desktop Navigation */}
-          <nav className="primary-nav hidden lg:flex items-center gap-1" aria-label="Main navigation">
-            <Link
-              href="/doctors"
-              className={`nav-link ${pathname.startsWith("/doctors") ? "active" : ""}`}
-            >
-              {t.findCare}
-            </Link>
-
-            {/* Clinical OS Modules Dropdown */}
-            <div className="relative group">
-              <button
-                type="button"
-                onClick={() => setFeaturesDropdownOpen(!featuresDropdownOpen)}
-                className="nav-link flex items-center gap-1 focus:outline-none"
-              >
-                <span>Clinical Modules</span>
-                <ChevronDown className="w-3.5 h-3.5 opacity-70 group-hover:rotate-180 transition-transform" />
-              </button>
-
-              <div className="absolute left-0 top-full pt-2 w-72 hidden group-hover:block z-50">
-                <div className="card p-2 bg-white rounded-2xl shadow-xl border border-border grid grid-cols-1 gap-1">
-                  {clinicalModules.map((m) => {
-                    const Icon = m.icon;
-                    return (
-                      <Link
-                        key={m.href}
-                        href={m.href}
-                        className="p-2.5 rounded-xl hover:bg-slate-50 flex items-start gap-3 transition-colors text-xs"
-                      >
-                        <span className="p-1.5 rounded-lg bg-teal-50 text-teal-800 mt-0.5">
-                          <Icon className="w-4 h-4" />
-                        </span>
-                        <div>
-                          <strong className="block text-slate-900 font-semibold">{m.label}</strong>
-                          <span className="text-[11px] text-muted">{m.desc}</span>
-                        </div>
-                      </Link>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-
+          {/* Desktop Navigation - Role-Isolated */}
+          <nav className="primary-nav hidden lg:flex items-center gap-1 text-xs" aria-label="Main navigation">
+            {/* If ADMIN */}
             {role === "admin" ? (
-              <Link href="/admin" className={`nav-link ${pathname === "/admin" ? "active" : ""}`}>
-                {t.admin}
-              </Link>
+              <>
+                <Link
+                  href="/admin"
+                  className={`px-3 py-2 rounded-xl font-bold transition ${
+                    pathname === "/admin" ? "bg-blue-900/90 text-white border-b-2 border-[#0D9488]" : "text-blue-100 hover:text-white hover:bg-blue-900/50"
+                  }`}
+                >
+                  Hospital ERP Console
+                </Link>
+                <Link
+                  href="/beds"
+                  className={`px-3 py-2 rounded-xl font-bold transition ${
+                    pathname === "/beds" ? "bg-blue-900/90 text-white border-b-2 border-[#0D9488]" : "text-blue-100 hover:text-white hover:bg-blue-900/50"
+                  }`}
+                >
+                  Bed Census
+                </Link>
+                <Link
+                  href="/billing"
+                  className={`px-3 py-2 rounded-xl font-bold transition ${
+                    pathname === "/billing" ? "bg-blue-900/90 text-white border-b-2 border-[#0D9488]" : "text-blue-100 hover:text-white hover:bg-blue-900/50"
+                  }`}
+                >
+                  Billing Ledger
+                </Link>
+                <Link
+                  href="/pharmacy"
+                  className={`px-3 py-2 rounded-xl font-bold transition ${
+                    pathname === "/pharmacy" ? "bg-blue-900/90 text-white border-b-2 border-[#0D9488]" : "text-blue-100 hover:text-white hover:bg-blue-900/50"
+                  }`}
+                >
+                  Pharmacy Stock
+                </Link>
+                <Link
+                  href="/opd-queue"
+                  className={`px-3 py-2 rounded-xl font-bold transition ${
+                    pathname === "/opd-queue" ? "bg-blue-900/90 text-white border-b-2 border-[#0D9488]" : "text-blue-100 hover:text-white hover:bg-blue-900/50"
+                  }`}
+                >
+                  OPD Queue TV
+                </Link>
+              </>
             ) : role === "doctor" ? (
-              <Link href="/doctor-portal" className={`nav-link ${pathname === "/doctor-portal" ? "active" : ""}`}>
-                {t.doctorPortal}
-              </Link>
+              /* If DOCTOR */
+              <>
+                <Link
+                  href="/doctor-portal"
+                  className={`px-3 py-2 rounded-xl font-bold transition ${
+                    pathname === "/doctor-portal" ? "bg-blue-900/90 text-white border-b-2 border-[#0D9488]" : "text-blue-100 hover:text-white hover:bg-blue-900/50"
+                  }`}
+                >
+                  Doctor Chamber Cockpit
+                </Link>
+                <Link
+                  href="/opd-queue"
+                  className={`px-3 py-2 rounded-xl font-bold transition ${
+                    pathname === "/opd-queue" ? "bg-blue-900/90 text-white border-b-2 border-[#0D9488]" : "text-blue-100 hover:text-white hover:bg-blue-900/50"
+                  }`}
+                >
+                  Live OPD Waiting TV
+                </Link>
+                <Link
+                  href="/prescriptions"
+                  className={`px-3 py-2 rounded-xl font-bold transition ${
+                    pathname.startsWith("/prescriptions") ? "bg-blue-900/90 text-white border-b-2 border-[#0D9488]" : "text-blue-100 hover:text-white hover:bg-blue-900/50"
+                  }`}
+                >
+                  Prescriptions
+                </Link>
+                <Link
+                  href="/teleconsult"
+                  className={`px-3 py-2 rounded-xl font-bold transition ${
+                    pathname.startsWith("/teleconsult") ? "bg-blue-900/90 text-white border-b-2 border-[#0D9488]" : "text-blue-100 hover:text-white hover:bg-blue-900/50"
+                  }`}
+                >
+                  Video Teleconsult
+                </Link>
+                <Link
+                  href="/lab-reports"
+                  className={`px-3 py-2 rounded-xl font-bold transition ${
+                    pathname.startsWith("/lab-reports") ? "bg-blue-900/90 text-white border-b-2 border-[#0D9488]" : "text-blue-100 hover:text-white hover:bg-blue-900/50"
+                  }`}
+                >
+                  Lab Reports
+                </Link>
+              </>
+            ) : role === "patient" ? (
+              /* If PATIENT */
+              <>
+                <Link
+                  href="/doctors"
+                  className={`px-3 py-2 rounded-xl font-bold transition ${
+                    pathname.startsWith("/doctors") ? "bg-blue-900/90 text-white border-b-2 border-[#0D9488]" : "text-blue-100 hover:text-white hover:bg-blue-900/50"
+                  }`}
+                >
+                  Book Doctor
+                </Link>
+                <Link
+                  href="/dashboard"
+                  className={`px-3 py-2 rounded-xl font-bold transition ${
+                    pathname === "/dashboard" ? "bg-blue-900/90 text-white border-b-2 border-[#0D9488]" : "text-blue-100 hover:text-white hover:bg-blue-900/50"
+                  }`}
+                >
+                  My Portal
+                </Link>
+                <Link
+                  href="/appointments"
+                  className={`px-3 py-2 rounded-xl font-bold transition ${
+                    pathname === "/appointments" ? "bg-blue-900/90 text-white border-b-2 border-[#0D9488]" : "text-blue-100 hover:text-white hover:bg-blue-900/50"
+                  }`}
+                >
+                  Visits
+                </Link>
+                <Link
+                  href="/prescriptions"
+                  className={`px-3 py-2 rounded-xl font-bold transition ${
+                    pathname.startsWith("/prescriptions") ? "bg-blue-900/90 text-white border-b-2 border-[#0D9488]" : "text-blue-100 hover:text-white hover:bg-blue-900/50"
+                  }`}
+                >
+                  Prescriptions (Rx)
+                </Link>
+                <Link
+                  href="/lab-reports"
+                  className={`px-3 py-2 rounded-xl font-bold transition ${
+                    pathname.startsWith("/lab-reports") ? "bg-blue-900/90 text-white border-b-2 border-[#0D9488]" : "text-blue-100 hover:text-white hover:bg-blue-900/50"
+                  }`}
+                >
+                  Lab Reports
+                </Link>
+                <Link
+                  href="/vitals"
+                  className={`px-3 py-2 rounded-xl font-bold transition ${
+                    pathname === "/vitals" ? "bg-blue-900/90 text-white border-b-2 border-[#0D9488]" : "text-blue-100 hover:text-white hover:bg-blue-900/50"
+                  }`}
+                >
+                  Vitals
+                </Link>
+                <Link
+                  href="/chat"
+                  className={`px-3 py-2 rounded-xl font-bold transition flex items-center gap-1.5 ${
+                    pathname === "/chat" ? "bg-blue-900/90 text-teal-200 border-b-2 border-[#0D9488]" : "text-teal-200 hover:text-white hover:bg-blue-900/50"
+                  }`}
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-teal-300" />
+                  <span>AI Health Chat</span>
+                </Link>
+                <Link
+                  href="/billing"
+                  className={`px-3 py-2 rounded-xl font-bold transition ${
+                    pathname === "/billing" ? "bg-blue-900/90 text-white border-b-2 border-[#0D9488]" : "text-blue-100 hover:text-white hover:bg-blue-900/50"
+                  }`}
+                >
+                  Bills
+                </Link>
+              </>
             ) : (
-              <Link href="/dashboard" className={`nav-link ${pathname === "/dashboard" ? "active" : ""}`}>
-                {t.myDashboard}
-              </Link>
+              /* If GUEST (Not Logged In) */
+              <>
+                <Link
+                  href="/doctors"
+                  className={`px-3 py-2 rounded-xl font-bold transition ${
+                    pathname.startsWith("/doctors") ? "bg-blue-900/90 text-white border-b-2 border-[#0D9488]" : "text-blue-100 hover:text-white hover:bg-blue-900/50"
+                  }`}
+                >
+                  Find Care &amp; Doctors
+                </Link>
+                <Link
+                  href="/chat"
+                  className={`px-3 py-2 rounded-xl font-bold transition flex items-center gap-1.5 ${
+                    pathname === "/chat" ? "bg-blue-900/90 text-teal-200 border-b-2 border-[#0D9488]" : "text-teal-200 hover:text-white hover:bg-blue-900/50"
+                  }`}
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-teal-300" />
+                  <span>AI Health Assistant</span>
+                </Link>
+                <Link
+                  href="/opd-queue"
+                  className={`px-3 py-2 rounded-xl font-bold transition ${
+                    pathname === "/opd-queue" ? "bg-blue-900/90 text-white border-b-2 border-[#0D9488]" : "text-blue-100 hover:text-white hover:bg-blue-900/50"
+                  }`}
+                >
+                  OPD Status
+                </Link>
+                <Link
+                  href="/beds"
+                  className={`px-3 py-2 rounded-xl font-bold transition ${
+                    pathname === "/beds" ? "bg-blue-900/90 text-white border-b-2 border-[#0D9488]" : "text-blue-100 hover:text-white hover:bg-blue-900/50"
+                  }`}
+                >
+                  Hospital Beds
+                </Link>
+              </>
             )}
-
-            <Link href="/prescriptions" className={`nav-link ${pathname.startsWith("/prescriptions") ? "active" : ""}`}>
-              {t.records}
-            </Link>
-
-            <Link href="/billing" className={`nav-link ${pathname === "/billing" ? "active" : ""}`}>
-              Billing &amp; Invoices
-            </Link>
           </nav>
 
-          {/* User Controls & Actions */}
-          <div className="header-actions flex items-center gap-3">
+          {/* User Controls & Session Actions */}
+          <div className="header-actions flex items-center gap-2.5">
             <Link
               href="/emergency"
-              className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors"
+              className="px-2.5 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors shadow-sm"
             >
-              <PhoneCall className="w-3.5 h-3.5 text-red-600 animate-pulse" />
+              <PhoneCall className="w-3.5 h-3.5 text-white animate-pulse" />
               <span>SOS</span>
             </Link>
 
             {username ? (
-              <div className="session-status flex items-center gap-2">
+              <div className="flex items-center gap-2">
                 <Link
                   href={role === "admin" ? "/admin" : role === "doctor" ? "/doctor-portal" : "/dashboard"}
-                  className="user-pill text-xs"
+                  className="px-3 py-1.5 rounded-xl bg-blue-900/70 border border-blue-400/30 hover:bg-blue-900 text-white text-xs font-semibold flex items-center gap-2 transition"
                 >
-                  <span className="role-tag uppercase">{role}</span>
-                  <span className="username font-semibold">{username}</span>
+                  <span className={`text-[10px] font-black uppercase px-1.5 py-0.5 rounded ${
+                    role === "admin" ? "bg-blue-800 text-teal-300" : role === "doctor" ? "bg-teal-800 text-teal-200" : "bg-blue-800 text-white"
+                  }`}>
+                    {role}
+                  </span>
+                  <span className="truncate max-w-[120px]">{username}</span>
                 </Link>
                 <button
                   type="button"
                   onClick={signOut}
-                  className="button button-quiet text-xs py-1.5 px-2.5"
+                  className="px-3 py-1.5 rounded-xl bg-blue-950/60 hover:bg-blue-950 text-blue-200 hover:text-white text-xs font-semibold border border-blue-900 transition"
                 >
-                  {t.logout}
+                  Sign Out
                 </button>
               </div>
             ) : (
-              <div className="login-actions flex items-center gap-2">
-                <Link href="/login" className="button button-quiet text-xs py-1.5 px-3">
-                  {t.login}
+              <div className="flex items-center gap-2">
+                <Link
+                  href="/login"
+                  className="px-3 py-1.5 rounded-xl bg-blue-900/60 hover:bg-blue-900 text-white font-bold text-xs border border-blue-400/30 transition"
+                >
+                  Sign In
                 </Link>
-                <Link href="/doctors" className="button button-primary text-xs py-1.5 px-3 hidden sm:inline-flex">
-                  {t.bookNow}
+                <Link
+                  href="/registration"
+                  className="px-3 py-1.5 rounded-xl border border-blue-300/40 hover:bg-blue-900/50 text-white font-bold text-xs transition hidden sm:inline-block"
+                >
+                  Register
+                </Link>
+                <Link
+                  href="/doctors"
+                  className="px-3.5 py-1.5 rounded-xl bg-[#0D9488] hover:bg-[#0F766E] text-white font-bold text-xs shadow-sm transition hidden sm:inline-block"
+                >
+                  Book Visit
                 </Link>
               </div>
             )}
@@ -321,48 +396,91 @@ export default function SiteHeader() {
             <button
               type="button"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="lg:hidden p-2 text-slate-700 hover:text-black focus:outline-none"
+              className="lg:hidden p-2 text-blue-200 hover:text-white focus:outline-none"
               aria-label="Toggle navigation menu"
             >
-              {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
           </div>
         </div>
 
-        {/* Mobile Slide-down Menu */}
+        {/* Mobile Dropdown Navigation */}
         {mobileMenuOpen && (
-          <div className="lg:hidden bg-white border-b border-border p-4 space-y-3">
+          <div className="lg:hidden bg-[#1E3A8A] border-t border-blue-900 p-4 space-y-3">
             <div className="grid grid-cols-2 gap-2 text-xs">
-              <Link href="/doctors" onClick={() => setMobileMenuOpen(false)} className="p-2 bg-slate-50 rounded-lg font-medium">
-                🩺 Find Care
-              </Link>
-              <Link href="/symptom-checker" onClick={() => setMobileMenuOpen(false)} className="p-2 bg-slate-50 rounded-lg font-medium">
-                ⚡ AI Triage
-              </Link>
-              <Link href="/lab-reports" onClick={() => setMobileMenuOpen(false)} className="p-2 bg-slate-50 rounded-lg font-medium">
-                🔬 Lab Reports
-              </Link>
-              <Link href="/teleconsult" onClick={() => setMobileMenuOpen(false)} className="p-2 bg-slate-50 rounded-lg font-medium">
-                📹 Teleconsult
-              </Link>
-              <Link href="/vitals" onClick={() => setMobileMenuOpen(false)} className="p-2 bg-slate-50 rounded-lg font-medium">
-                📈 Vitals Tracker
-              </Link>
-              <Link href="/beds" onClick={() => setMobileMenuOpen(false)} className="p-2 bg-slate-50 rounded-lg font-medium">
-                🛏️ Hospital Beds
-              </Link>
-              <Link href="/pharmacy" onClick={() => setMobileMenuOpen(false)} className="p-2 bg-slate-50 rounded-lg font-medium">
-                💊 Pharmacy
-              </Link>
-              <Link href="/opd-queue" onClick={() => setMobileMenuOpen(false)} className="p-2 bg-slate-50 rounded-lg font-medium">
-                ⏱️ OPD Queue TV
-              </Link>
-              <Link href="/vaccinations" onClick={() => setMobileMenuOpen(false)} className="p-2 bg-slate-50 rounded-lg font-medium">
-                💉 Vaccines
-              </Link>
-              <Link href="/billing" onClick={() => setMobileMenuOpen(false)} className="p-2 bg-slate-50 rounded-lg font-medium">
-                💳 Billing &amp; Invoices
-              </Link>
+              {role === "admin" ? (
+                <>
+                  <Link href="/admin" onClick={() => setMobileMenuOpen(false)} className="p-3 bg-blue-900 text-white rounded-xl font-bold border border-blue-800">
+                    👑 Admin Console
+                  </Link>
+                  <Link href="/beds" onClick={() => setMobileMenuOpen(false)} className="p-3 bg-blue-900 text-blue-100 rounded-xl font-bold border border-blue-800">
+                    🛏️ Bed Census
+                  </Link>
+                  <Link href="/billing" onClick={() => setMobileMenuOpen(false)} className="p-3 bg-blue-900 text-blue-100 rounded-xl font-bold border border-blue-800">
+                    💳 Billing Ledger
+                  </Link>
+                  <Link href="/pharmacy" onClick={() => setMobileMenuOpen(false)} className="p-3 bg-blue-900 text-blue-100 rounded-xl font-bold border border-blue-800">
+                    💊 Pharmacy
+                  </Link>
+                </>
+              ) : role === "doctor" ? (
+                <>
+                  <Link href="/doctor-portal" onClick={() => setMobileMenuOpen(false)} className="p-3 bg-blue-900 text-white rounded-xl font-bold border border-blue-800">
+                    🩺 Doctor Chamber
+                  </Link>
+                  <Link href="/opd-queue" onClick={() => setMobileMenuOpen(false)} className="p-3 bg-blue-900 text-blue-100 rounded-xl font-bold border border-blue-800">
+                    ⏱️ OPD Queue TV
+                  </Link>
+                  <Link href="/prescriptions" onClick={() => setMobileMenuOpen(false)} className="p-3 bg-blue-900 text-blue-100 rounded-xl font-bold border border-blue-800">
+                    📝 Prescriptions
+                  </Link>
+                  <Link href="/teleconsult" onClick={() => setMobileMenuOpen(false)} className="p-3 bg-blue-900 text-blue-100 rounded-xl font-bold border border-blue-800">
+                    📹 Teleconsult
+                  </Link>
+                </>
+              ) : role === "patient" ? (
+                <>
+                  <Link href="/dashboard" onClick={() => setMobileMenuOpen(false)} className="p-3 bg-blue-900 text-white rounded-xl font-bold border border-blue-800">
+                    👤 My Portal
+                  </Link>
+                  <Link href="/doctors" onClick={() => setMobileMenuOpen(false)} className="p-3 bg-blue-900 text-blue-100 rounded-xl font-bold border border-blue-800">
+                    🩺 Find Doctor
+                  </Link>
+                  <Link href="/appointments" onClick={() => setMobileMenuOpen(false)} className="p-3 bg-blue-900 text-blue-100 rounded-xl font-bold border border-blue-800">
+                    📅 Appointments
+                  </Link>
+                  <Link href="/prescriptions" onClick={() => setMobileMenuOpen(false)} className="p-3 bg-blue-900 text-blue-100 rounded-xl font-bold border border-blue-800">
+                    📝 Prescriptions
+                  </Link>
+                  <Link href="/lab-reports" onClick={() => setMobileMenuOpen(false)} className="p-3 bg-blue-900 text-blue-100 rounded-xl font-bold border border-blue-800">
+                    🔬 Lab Reports
+                  </Link>
+                  <Link href="/chat" onClick={() => setMobileMenuOpen(false)} className="p-3 bg-blue-900 text-teal-300 rounded-xl font-bold border border-blue-800">
+                    ⚡ AI Health Chat
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <Link href="/doctors" onClick={() => setMobileMenuOpen(false)} className="p-3 bg-blue-900 text-white rounded-xl font-bold border border-blue-800">
+                    🩺 Book Doctor
+                  </Link>
+                  <Link href="/chat" onClick={() => setMobileMenuOpen(false)} className="p-3 bg-blue-900 text-teal-300 rounded-xl font-bold border border-blue-800">
+                    ⚡ AI Health Chat
+                  </Link>
+                  <Link href="/opd-queue" onClick={() => setMobileMenuOpen(false)} className="p-3 bg-blue-900 text-blue-100 rounded-xl font-bold border border-blue-800">
+                    ⏱️ OPD Status
+                  </Link>
+                  <Link href="/beds" onClick={() => setMobileMenuOpen(false)} className="p-3 bg-blue-900 text-blue-100 rounded-xl font-bold border border-blue-800">
+                    🛏️ Hospital Beds
+                  </Link>
+                  <Link href="/login" onClick={() => setMobileMenuOpen(false)} className="p-3 bg-blue-950 text-white rounded-xl font-bold border border-blue-800">
+                    🔑 Sign In
+                  </Link>
+                  <Link href="/registration" onClick={() => setMobileMenuOpen(false)} className="p-3 bg-[#0D9488] text-white rounded-xl font-bold">
+                    📝 Register
+                  </Link>
+                </>
+              )}
             </div>
           </div>
         )}

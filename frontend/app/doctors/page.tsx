@@ -159,22 +159,22 @@ export default function DoctorsPage() {
   }, [doctors, sortBy]);
 
   return (
-    <main className="min-h-screen bg-slate-50/50 dark:bg-slate-950 py-8 px-4 sm:px-6 lg:px-8">
+    <main className="min-h-screen bg-white py-8 px-4 sm:px-6 lg:px-8 text-[#4B5563]">
       <div className="max-w-7xl mx-auto space-y-8">
         {/* Top Header Hero */}
-        <div className="bg-gradient-to-br from-emerald-900 via-teal-900 to-slate-900 text-white rounded-3xl p-8 sm:p-12 shadow-xl border border-emerald-800/40 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="bg-[#1E3A8A] text-white rounded-3xl p-8 sm:p-12 shadow-sm border border-blue-900/40 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-96 h-96 bg-teal-400/10 rounded-full blur-3xl pointer-events-none" />
           
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 relative z-10">
             <div className="space-y-3 max-w-2xl">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-bold uppercase tracking-wider border border-emerald-500/30">
-                <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-500/20 text-teal-200 text-xs font-bold uppercase tracking-wider border border-teal-500/30">
+                <Sparkles className="w-3.5 h-3.5 text-teal-300" />
                 <span>Verified Clinical Faculty &amp; Consultants</span>
               </div>
               <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white">
                 Find the Right Specialist for Your Care
               </h1>
-              <p className="text-slate-300 text-sm sm:text-base leading-relaxed">
+              <p className="text-blue-100 text-sm sm:base leading-relaxed">
                 Connect with certified clinicians across major specialties. Book verified 30-minute consultation slots with real-time schedule conflict prevention and instant WhatsApp &amp; SMS confirmations.
               </p>
             </div>
@@ -184,58 +184,58 @@ export default function DoctorsPage() {
                 href="/appointments"
                 className="px-5 py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs border border-white/20 backdrop-blur-md transition flex items-center gap-2"
               >
-                <Calendar className="w-4 h-4 text-emerald-400" />
+                <Calendar className="w-4 h-4 text-teal-300" />
                 <span>My Appointments</span>
               </Link>
               <Link
                 href="/symptom-checker"
-                className="px-5 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-xs shadow-lg transition flex items-center gap-2"
+                className="px-5 py-3 rounded-xl bg-[#0D9488] hover:bg-[#0F766E] text-white font-black text-xs shadow-sm transition flex items-center gap-2"
               >
-                <Stethoscope className="w-4 h-4 text-slate-950" />
+                <Stethoscope className="w-4 h-4 text-white" />
                 <span>AI Symptom Triage</span>
               </Link>
             </div>
           </div>
 
           {/* Quick Metrics Bar */}
-          <div className="mt-8 pt-6 border-t border-emerald-800/60 grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
+          <div className="mt-8 pt-6 border-t border-white/15 grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
             <div>
-              <span className="text-emerald-400 font-bold uppercase text-[10px] tracking-wider block">Specialties</span>
+              <span className="text-teal-300 font-bold uppercase text-[10px] tracking-wider block">Specialties</span>
               <strong className="text-base font-black text-white">{categories.length || 6} Departments</strong>
             </div>
             <div>
-              <span className="text-emerald-400 font-bold uppercase text-[10px] tracking-wider block">OPD Slots</span>
+              <span className="text-teal-300 font-bold uppercase text-[10px] tracking-wider block">OPD Slots</span>
               <strong className="text-base font-black text-white">30-Min Realtime Slots</strong>
             </div>
             <div>
-              <span className="text-emerald-400 font-bold uppercase text-[10px] tracking-wider block">Payment Options</span>
+              <span className="text-teal-300 font-bold uppercase text-[10px] tracking-wider block">Payment Options</span>
               <strong className="text-base font-black text-white">PhonePe UPI &amp; Cash Counter</strong>
             </div>
             <div>
-              <span className="text-emerald-400 font-bold uppercase text-[10px] tracking-wider block">Consultation Tax</span>
+              <span className="text-teal-300 font-bold uppercase text-[10px] tracking-wider block">Consultation Tax</span>
               <strong className="text-base font-black text-white">0% GST (Entry 74 Exempt)</strong>
             </div>
           </div>
         </div>
 
         {/* Filter and Search Bar Card */}
-        <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-sm border border-slate-200 dark:border-slate-800 space-y-5">
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200 space-y-5">
           <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
             {/* Search Box */}
             <div className="relative flex-1">
-              <Search className="w-5 h-5 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <Search className="w-5 h-5 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search by doctor name, qualification (MD, MS, DM), or treatment..."
-                className="w-full pl-11 pr-10 py-3 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition"
+                className="w-full pl-11 pr-10 py-3 rounded-xl bg-slate-50 border border-gray-200 text-sm text-[#1E3A8A] placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0D9488]/30 focus:border-[#0D9488] transition"
               />
               {search && (
                 <button
                   type="button"
                   onClick={() => setSearch("")}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -244,13 +244,13 @@ export default function DoctorsPage() {
 
             {/* Sort Dropdown */}
             <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 shrink-0">
+              <span className="text-xs font-semibold text-[#4B5563] shrink-0">
                 Sort by:
               </span>
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as any)}
-                className="py-2.5 px-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                className="py-2.5 px-3 rounded-xl bg-slate-50 border border-gray-200 text-xs font-semibold text-[#1E3A8A] focus:outline-none focus:ring-2 focus:ring-[#0D9488]/30 focus:border-[#0D9488]"
               >
                 <option value="featured">Featured Clinicians</option>
                 <option value="exp">Most Experience First</option>
@@ -262,14 +262,14 @@ export default function DoctorsPage() {
           {/* Department Filter Pills */}
           <div>
             <div className="flex items-center justify-between mb-2.5">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              <span className="text-xs font-bold uppercase tracking-wider text-[#4B5563]">
                 Filter by Department
               </span>
               {selectedCatId !== null && (
                 <button
                   type="button"
                   onClick={() => setSelectedCatId(null)}
-                  className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:underline"
+                  className="text-xs font-semibold text-[#0D9488] hover:underline"
                 >
                   Clear filter
                 </button>
@@ -282,12 +282,12 @@ export default function DoctorsPage() {
                 onClick={() => setSelectedCatId(null)}
                 className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
                   selectedCatId === null
-                    ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/20"
-                    : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
+                    ? "bg-[#0D9488] text-white shadow-sm"
+                    : "bg-slate-100 text-[#4B5563] hover:bg-slate-200"
                 }`}
               >
                 <span>🏥 All Departments</span>
-                <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-black/10 dark:bg-white/10">
+                <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-black/10">
                   {doctors.length}
                 </span>
               </button>
@@ -302,13 +302,13 @@ export default function DoctorsPage() {
                     onClick={() => setSelectedCatId(isActive ? null : cat.id)}
                     className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border ${
                       isActive
-                        ? "bg-emerald-600 text-white border-emerald-600 shadow-md shadow-emerald-600/20"
-                        : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-slate-300"
+                        ? "bg-[#0D9488] text-white border-[#0D9488] shadow-sm"
+                        : "bg-white text-[#4B5563] border-gray-200 hover:border-gray-300 hover:bg-slate-50"
                     }`}
                   >
                     <span>{meta?.icon || "🩺"}</span>
                     <span>{cat.category_name}</span>
-                    <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
+                    <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-slate-100 text-[#4B5563]">
                       {cat.doctor_count || 1}
                     </span>
                   </button>
@@ -320,23 +320,23 @@ export default function DoctorsPage() {
 
         {/* Directory Content States */}
         {loading ? (
-          <div className="bg-white dark:bg-slate-900 rounded-3xl p-16 text-center border border-slate-200 dark:border-slate-800 shadow-sm">
-            <div className="w-12 h-12 rounded-2xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 flex items-center justify-center mx-auto mb-4 animate-spin">
+          <div className="bg-white rounded-3xl p-16 text-center border border-gray-200 shadow-sm">
+            <div className="w-12 h-12 rounded-2xl bg-teal-50 text-[#0D9488] flex items-center justify-center mx-auto mb-4 animate-spin">
               <Stethoscope className="w-6 h-6" />
             </div>
-            <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+            <h3 className="text-lg font-bold text-[#1E3A8A]">
               Loading Verified Clinician Directory…
             </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            <p className="text-xs text-[#4B5563] mt-1">
               Synchronizing active outpatient clinic schedules and consultation slots.
             </p>
           </div>
         ) : error ? (
-          <div className="bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/40 rounded-3xl p-8 text-center">
-            <h3 className="text-base font-bold text-rose-800 dark:text-rose-300">
+          <div className="bg-rose-50 border border-rose-200 rounded-3xl p-8 text-center">
+            <h3 className="text-base font-bold text-rose-800">
               Unable to load clinician directory
             </h3>
-            <p className="text-xs text-rose-600 dark:text-rose-400 mt-1 max-w-md mx-auto">{error}</p>
+            <p className="text-xs text-rose-600 mt-1 max-w-md mx-auto">{error}</p>
             <button
               type="button"
               onClick={() => window.location.reload()}
@@ -346,14 +346,14 @@ export default function DoctorsPage() {
             </button>
           </div>
         ) : sortedDoctors.length === 0 ? (
-          <div className="bg-white dark:bg-slate-900 rounded-3xl p-16 text-center border border-slate-200 dark:border-slate-800">
-            <div className="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-400 flex items-center justify-center mx-auto mb-4">
+          <div className="bg-white rounded-3xl p-16 text-center border border-gray-200 shadow-sm">
+            <div className="w-16 h-16 rounded-2xl bg-slate-100 text-[#4B5563] flex items-center justify-center mx-auto mb-4">
               <Search className="w-8 h-8" />
             </div>
-            <h3 className="text-xl font-bold text-slate-900 dark:text-white">
+            <h3 className="text-xl font-bold text-[#1E3A8A]">
               No specialists match your search criteria
             </h3>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-md mx-auto">
+            <p className="text-sm text-[#4B5563] mt-1 max-w-md mx-auto">
               We couldn&apos;t find doctors matching &ldquo;{search}&rdquo;. Try clearing filters or searching for general terms like &ldquo;Cardiology&rdquo; or &ldquo;MBBS&rdquo;.
             </p>
             <button
@@ -362,7 +362,7 @@ export default function DoctorsPage() {
                 setSelectedCatId(null);
                 setSearch("");
               }}
-              className="mt-6 px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md"
+              className="mt-6 px-6 py-2.5 rounded-xl bg-[#0D9488] hover:bg-[#0F766E] text-white font-bold text-xs shadow-sm"
             >
               Reset All Filters
             </button>
@@ -373,9 +373,9 @@ export default function DoctorsPage() {
             {sortedDoctors.map((doctor) => {
               const meta = SPECIALTY_META[doctor.category_name] || {
                 icon: "🩺",
-                bg: "bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300",
-                text: "text-emerald-700",
-                border: "border-emerald-200 dark:border-emerald-800",
+                bg: "bg-teal-50 text-[#0D9488]",
+                text: "text-[#0D9488]",
+                border: "border-teal-200",
                 desc: "Consultant Physician",
               };
               const initials = doctor.name
@@ -388,30 +388,30 @@ export default function DoctorsPage() {
               return (
                 <article
                   key={doctor.id}
-                  className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-xl hover:border-emerald-500/40 transition-all flex flex-col justify-between group"
+                  className="bg-white rounded-3xl p-6 border border-gray-200 shadow-sm hover:shadow-md hover:border-[#0D9488]/40 transition-all flex flex-col justify-between group"
                 >
                   <div className="space-y-4">
                     {/* Top Row: Avatar & Status */}
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex items-center gap-3">
-                        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-700 text-white flex items-center justify-center font-black text-lg shadow-md group-hover:scale-105 transition-transform">
+                        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#1E3A8A] to-[#0D9488] text-white flex items-center justify-center font-black text-lg shadow-sm group-hover:scale-105 transition-transform">
                           {initials}
                         </div>
                         <div>
-                          <div className="flex items-center gap-1 text-[11px] font-bold text-emerald-700 dark:text-emerald-400">
+                          <div className="flex items-center gap-1 text-[11px] font-bold text-[#0D9488]">
                             <ShieldCheck className="w-3.5 h-3.5" />
                             <span>Verified Clinician</span>
                           </div>
-                          <h2 className="text-lg font-black text-slate-900 dark:text-white tracking-tight">
+                          <h2 className="text-lg font-black text-[#1E3A8A] tracking-tight">
                             {doctor.name}
                           </h2>
-                          <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                          <p className="text-xs text-[#4B5563] font-medium">
                             {doctor.qualification}
                           </p>
                         </div>
                       </div>
 
-                      <span className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 shrink-0">
+                      <span className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-[#4B5563] shrink-0">
                         {doctor.experience_years}y exp
                       </span>
                     </div>
@@ -426,48 +426,48 @@ export default function DoctorsPage() {
                           <span>{doctor.category_name}</span>
                         </span>
 
-                        <div className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
-                          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                          <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                        <div className="flex items-center gap-1 text-xs text-[#4B5563]">
+                          <span className="w-2 h-2 rounded-full bg-[#0D9488] animate-pulse" />
+                          <span className="text-[11px] font-semibold text-[#0D9488]">
                             Available Today
                           </span>
                         </div>
                       </div>
 
-                      <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-2 leading-relaxed">
+                      <p className="text-xs text-[#4B5563] line-clamp-2 leading-relaxed">
                         {doctor.about || meta.desc}
                       </p>
                     </div>
 
                     {/* Hospital Chamber & Location */}
-                    <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 text-xs space-y-1.5">
-                      <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
-                        <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                    <div className="p-3 rounded-2xl bg-slate-50 border border-gray-100 text-xs space-y-1.5">
+                      <div className="flex items-center gap-2 text-[#4B5563]">
+                        <MapPin className="w-3.5 h-3.5 text-gray-400 shrink-0" />
                         <span className="truncate">{doctor.clinic_address || "OPD Cabin 102 · Ground Floor East Wing"}</span>
                       </div>
-                      <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 text-[11px]">
-                        <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <div className="flex items-center gap-2 text-gray-400 text-[11px]">
+                        <Clock className="w-3.5 h-3.5 text-gray-400 shrink-0" />
                         <span>Daily 09:00 AM – 05:00 PM · 30m slots</span>
                       </div>
                     </div>
                   </div>
 
                   {/* Bottom Fee & Action Buttons */}
-                  <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800 space-y-3">
+                  <div className="mt-6 pt-4 border-t border-gray-100 space-y-3">
                     <div className="flex items-baseline justify-between">
                       <div>
-                        <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
+                        <span className="text-[10px] uppercase font-bold text-gray-400 block tracking-wider">
                           Consultation Fee
                         </span>
                         <div className="flex items-baseline gap-1">
-                          <strong className="text-xl font-black text-slate-900 dark:text-white">
+                          <strong className="text-xl font-black text-[#1E3A8A]">
                             ₹{doctor.fees}
                           </strong>
-                          <span className="text-[10px] text-slate-400 font-medium">/ 30 min visit</span>
+                          <span className="text-[10px] text-gray-400 font-medium">/ 30 min visit</span>
                         </div>
                       </div>
 
-                      <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-800">
+                      <span className="text-[10px] font-semibold text-[#0D9488] bg-teal-50 px-2 py-0.5 rounded border border-teal-200">
                         PhonePe QR &amp; Cash Desk
                       </span>
                     </div>
@@ -476,14 +476,14 @@ export default function DoctorsPage() {
                       <button
                         type="button"
                         onClick={() => setActiveBioDoctor(doctor)}
-                        className="py-2.5 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold text-xs transition text-center"
+                        className="py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-[#4B5563] font-bold text-xs transition text-center border border-gray-200"
                       >
                         Doctor Bio &amp; Reviews
                       </button>
 
                       <Link
                         href={`/appointments/book?doctor_id=${doctor.id}`}
-                        className="py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs transition flex items-center justify-center gap-1.5 shadow-md shadow-emerald-600/20"
+                        className="py-2.5 px-3 rounded-xl bg-[#0D9488] hover:bg-[#0F766E] text-white font-black text-xs transition flex items-center justify-center gap-1.5 shadow-sm"
                       >
                         <span>Book Slot</span>
                         <ArrowRight className="w-3.5 h-3.5" />
@@ -497,16 +497,16 @@ export default function DoctorsPage() {
         )}
 
         {/* Informative Guidance Banner */}
-        <div className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-3xl p-6 sm:p-8 flex flex-col md:flex-row items-center justify-between gap-6 text-emerald-950 dark:text-emerald-200">
+        <div className="bg-slate-50 border border-gray-200 rounded-3xl p-6 sm:p-8 flex flex-col md:flex-row items-center justify-between gap-6 text-[#4B5563]">
           <div className="space-y-1 text-center md:text-left">
-            <div className="flex items-center justify-center md:justify-start gap-2 text-xs font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-400">
+            <div className="flex items-center justify-center md:justify-start gap-2 text-xs font-bold uppercase tracking-wider text-[#0D9488]">
               <Info className="w-4 h-4" />
               <span>Transparent Hospital Consultation Policy</span>
             </div>
-            <h3 className="text-lg font-bold">
+            <h3 className="text-lg font-bold text-[#1E3A8A]">
               Direct Doctor Settlement with Zero Platform Convenience Fee
             </h3>
-            <p className="text-xs text-emerald-800 dark:text-emerald-300 max-w-2xl leading-relaxed">
+            <p className="text-xs text-[#4B5563] max-w-2xl leading-relaxed">
               Appointments booked on this portal reserve your live slot directly in the doctor&apos;s active OPD queue. Pay your consultation fee via PhonePe Dynamic UPI QR on arrival or at the reception desk. Consultations are exempt from Goods &amp; Services Tax under statutory Entry 74, Notification 12/2017-CT(R).
             </p>
           </div>
@@ -514,7 +514,7 @@ export default function DoctorsPage() {
           <div className="flex flex-col sm:flex-row gap-3 shrink-0">
             <Link
               href="/opd-queue"
-              className="px-5 py-3 rounded-xl bg-white dark:bg-slate-900 text-emerald-800 dark:text-emerald-300 font-bold text-xs border border-emerald-300 dark:border-emerald-800 hover:bg-emerald-100 transition text-center"
+              className="px-5 py-3 rounded-xl bg-white text-[#1E3A8A] font-bold text-xs border border-gray-200 hover:border-[#0D9488] hover:text-[#0D9488] transition text-center shadow-sm"
             >
               View Live OPD Queue TV
             </Link>
@@ -536,19 +536,19 @@ export default function DoctorsPage() {
           onClick={() => setActiveBioDoctor(null)}
         >
           <div
-            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl space-y-6 relative max-h-[90vh] overflow-y-auto"
+            className="bg-white border border-gray-200 rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl space-y-6 relative max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <button
               type="button"
               onClick={() => setActiveBioDoctor(null)}
-              className="absolute top-5 right-5 p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600"
+              className="absolute top-5 right-5 p-2 rounded-full hover:bg-slate-100 text-gray-400 hover:text-gray-600"
             >
               <X className="w-5 h-5" />
             </button>
 
             <div className="flex items-center gap-4">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-500 text-white font-black text-2xl flex items-center justify-center shadow-md">
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-[#1E3A8A] to-[#0D9488] text-white font-black text-2xl flex items-center justify-center shadow-md">
                 {activeBioDoctor.name
                   .trim()
                   .split(/\s+/)
@@ -557,40 +557,40 @@ export default function DoctorsPage() {
                   .join("")}
               </div>
               <div>
-                <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider block">
+                <span className="text-xs font-bold text-[#0D9488] uppercase tracking-wider block">
                   {activeBioDoctor.category_name}
                 </span>
-                <h3 className="text-xl font-black text-slate-900 dark:text-white">
+                <h3 className="text-xl font-black text-[#1E3A8A]">
                   {activeBioDoctor.name}
                 </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
+                <p className="text-xs text-[#4B5563]">
                   {activeBioDoctor.qualification} · {activeBioDoctor.experience_years} Years Experience
                 </p>
               </div>
             </div>
 
             <div className="space-y-3">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400">
                 Clinical Background &amp; Profile
               </h4>
-              <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+              <p className="text-xs text-[#4B5563] leading-relaxed">
                 {activeBioDoctor.about ||
                   `${activeBioDoctor.name} is a senior consultant in ${activeBioDoctor.category_name} with over ${activeBioDoctor.experience_years} years of inpatient and outpatient clinical experience, specializing in evidence-based patient management and chronic care coordination.`}
               </p>
             </div>
 
             <div className="grid grid-cols-2 gap-3 text-xs">
-              <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-                <span className="text-[10px] uppercase font-bold text-slate-400 block">Consultation Fee</span>
-                <strong className="text-base font-black text-slate-900 dark:text-white">₹{activeBioDoctor.fees}</strong>
-                <span className="text-[10px] text-slate-500 block">Per 30-min slot</span>
+              <div className="p-3 rounded-2xl bg-slate-50 border border-gray-200">
+                <span className="text-[10px] uppercase font-bold text-gray-400 block">Consultation Fee</span>
+                <strong className="text-base font-black text-[#1E3A8A]">₹{activeBioDoctor.fees}</strong>
+                <span className="text-[10px] text-gray-500 block">Per 30-min slot</span>
               </div>
-              <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-                <span className="text-[10px] uppercase font-bold text-slate-400 block">OPD Chamber</span>
-                <strong className="text-sm font-bold text-slate-900 dark:text-white truncate block">
+              <div className="p-3 rounded-2xl bg-slate-50 border border-gray-200">
+                <span className="text-[10px] uppercase font-bold text-gray-400 block">OPD Chamber</span>
+                <strong className="text-sm font-bold text-[#1E3A8A] truncate block">
                   {activeBioDoctor.clinic_address || "Chamber 102"}
                 </strong>
-                <span className="text-[10px] text-emerald-600 font-semibold block">Ground Floor OPD Wing</span>
+                <span className="text-[10px] text-[#0D9488] font-semibold block">Ground Floor OPD Wing</span>
               </div>
             </div>
 
@@ -598,13 +598,13 @@ export default function DoctorsPage() {
               <button
                 type="button"
                 onClick={() => setActiveBioDoctor(null)}
-                className="w-1/2 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 font-bold text-xs transition"
+                className="w-1/2 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-[#4B5563] font-bold text-xs transition border border-gray-200"
               >
                 Close Profile
               </button>
               <Link
                 href={`/appointments/book?doctor_id=${activeBioDoctor.id}`}
-                className="w-1/2 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs transition text-center shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-1.5"
+                className="w-1/2 py-3 rounded-xl bg-[#0D9488] hover:bg-[#0F766E] text-white font-black text-xs transition text-center shadow-sm flex items-center justify-center gap-1.5"
               >
                 <span>Book Slot Now</span>
                 <ArrowRight className="w-4 h-4" />
