@@ -26,6 +26,7 @@ import {
   HeartHandshake,
   Layers,
   Lock,
+  Mail,
   MessageCircle,
   Phone,
   PhoneCall,
@@ -46,42 +47,19 @@ import {
 } from "lucide-react";
 import { loginAsDemoRole } from "../lib/auth";
 import { getStoredHospitalName, setStoredHospitalName } from "../lib/hospital";
+import { openDemoModal } from "../components/LaunchLiveDemoModal";
 
 export default function SellingSitePage() {
   const router = useRouter();
-  const [showDemoModal, setShowDemoModal] = useState(false);
-  const [hospitalInput, setHospitalInput] = useState("");
-  const [selectedRole, setSelectedRole] = useState<"patient" | "doctor" | "admin">("admin");
-  const [isLaunching, setIsLaunching] = useState(false);
 
   function handleOpenDemoModal(preferredRole?: "patient" | "doctor" | "admin") {
-    if (preferredRole) setSelectedRole(preferredRole);
-    setHospitalInput(getStoredHospitalName());
-    setShowDemoModal(true);
-  }
-
-  async function handleLaunchDemo(e?: React.FormEvent) {
-    if (e) e.preventDefault();
-    setIsLaunching(true);
-
-    const nameToSave = hospitalInput.trim() || "City Care Multi-Specialty Hospital";
-    setStoredHospitalName(nameToSave);
-
-    try {
-      await loginAsDemoRole(selectedRole);
-      setShowDemoModal(false);
-      if (selectedRole === "admin") router.push("/admin");
-      else if (selectedRole === "doctor") router.push("/doctor-portal");
-      else router.push("/dashboard");
-    } finally {
-      setIsLaunching(false);
-    }
+    openDemoModal(preferredRole || "admin");
   }
 
   return (
     <main className="min-h-screen bg-slate-900 text-slate-100 selection:bg-emerald-500 selection:text-white">
       {/* 1. EXECUTIVE COMMERCIAL HERO BANNER */}
-      <section className="relative overflow-hidden pt-12 pb-24 border-b border-slate-800 bg-gradient-to-b from-slate-950 via-slate-900 to-emerald-950/40">
+      <section id="hero" className="relative overflow-hidden pt-12 pb-24 border-b border-slate-800 bg-gradient-to-b from-slate-950 via-slate-900 to-emerald-950/40">
         {/* Ambient glow backgrounds */}
         <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] bg-emerald-500/10 blur-[120px] rounded-full pointer-events-none" />
         <div className="absolute top-10 right-10 w-[400px] h-[300px] bg-purple-500/10 blur-[100px] rounded-full pointer-events-none" />
@@ -319,7 +297,7 @@ export default function SellingSitePage() {
       </section>
 
       {/* 3. VISUAL FEATURE SHOWCASE WITH DETAILED PHOTOS / MOCKUPS */}
-      <section className="py-24 bg-slate-900">
+      <section id="features" className="py-24 bg-slate-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-24">
           <div className="text-center max-w-3xl mx-auto space-y-3">
             <span className="text-xs font-bold uppercase tracking-widest text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
@@ -334,7 +312,7 @@ export default function SellingSitePage() {
           </div>
 
           {/* Module 1: Live OPD Waiting Room TV Display */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
+          <div id="opd-tv" className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
             <div className="space-y-4">
               <div className="inline-flex items-center gap-2 text-xs font-bold text-teal-400 uppercase tracking-wider">
                 <Tv className="w-4 h-4" />
@@ -408,7 +386,7 @@ export default function SellingSitePage() {
           </div>
 
           {/* Module 2: PhonePe UPI Direct Doctor Settlement & Receipts */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
+          <div id="billing-flow" className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
             {/* Visual Photo Mockup: PhonePe QR & Receipt */}
             <div className="rounded-3xl bg-slate-950 p-6 border-2 border-purple-500/30 shadow-2xl relative overflow-hidden order-2 lg:order-1">
               <div className="bg-gradient-to-r from-[#5f259f] to-[#451675] p-4 rounded-2xl text-white flex items-center justify-between">
@@ -622,7 +600,7 @@ export default function SellingSitePage() {
       </section>
 
       {/* 4. COMMERCIAL PACKAGING & SOURCE CODE LICENSING */}
-      <section className="py-20 bg-slate-950 border-t border-slate-800">
+      <section id="architecture" className="py-20 bg-slate-950 border-t border-slate-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto mb-14 space-y-3">
             <span className="text-xs font-bold uppercase tracking-widest text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
@@ -673,7 +651,7 @@ export default function SellingSitePage() {
       </section>
 
       {/* 5. ABOUT THE DEVELOPER — LOCHAN JANGID SECTION */}
-      <section className="py-20 bg-gradient-to-b from-slate-900 to-slate-950 border-t border-slate-800">
+      <section id="developer" className="py-20 bg-gradient-to-b from-slate-900 to-slate-950 border-t border-slate-800">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="rounded-3xl bg-slate-900/90 border-2 border-emerald-500/30 p-8 sm:p-12 shadow-2xl relative overflow-hidden">
             <div className="flex flex-col md:flex-row items-center gap-8">
@@ -716,138 +694,41 @@ export default function SellingSitePage() {
         </div>
       </section>
 
-      {/* 6. INTERACTIVE REBRANDING & DEMO LAUNCH MODAL */}
-      {showDemoModal && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 overflow-y-auto"
-          onClick={() => setShowDemoModal(false)}
-        >
-          <div
-            className="relative w-full max-w-lg bg-slate-900 rounded-3xl p-6 sm:p-8 border border-emerald-500/30 shadow-2xl my-8 text-white"
-            onClick={(e) => e.stopPropagation()}
-          >
+      {/* 6. CONTACT & DEPLOYMENT INQUIRIES SECTION */}
+      <section id="contact" className="py-20 bg-slate-900 border-t border-slate-800">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-6">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-500/10 text-teal-300 text-xs font-bold uppercase tracking-wider border border-teal-500/20">
+            <HeartHandshake className="w-3.5 h-3.5 text-teal-400" />
+            <span>Ready for Hospital Deployment</span>
+          </div>
+          <h2 className="text-3xl sm:text-4xl font-black text-white tracking-tight">
+            Schedule a 1-on-1 Walkthrough or Buyout Discussion
+          </h2>
+          <p className="text-sm text-slate-300 max-w-2xl mx-auto leading-relaxed">
+            Interested in deploying this system at your hospital, clinic, or medical center? Speak directly with developer <strong>Lochan Jangid</strong> regarding custom features, private server setups, and licensing options.
+          </p>
+
+          <div className="flex flex-wrap items-center justify-center gap-4 pt-4">
             <button
               type="button"
-              onClick={() => setShowDemoModal(false)}
-              className="absolute right-4 top-4 p-2 text-slate-400 hover:text-white rounded-full transition"
+              onClick={() => handleOpenDemoModal("admin")}
+              className="inline-flex items-center gap-2 px-8 py-4 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-sm shadow-xl shadow-emerald-950/40 transition transform hover:-translate-y-0.5"
             >
-              <X className="w-5 h-5" />
+              <Building2 className="w-4 h-4 text-slate-950" />
+              <span>Launch Live Demo with Your Hospital Name</span>
+              <ArrowRight className="w-4 h-4" />
             </button>
 
-            <div className="mb-6 space-y-1">
-              <div className="inline-flex items-center gap-2 text-xs font-bold text-emerald-400 uppercase tracking-wider">
-                <Building2 className="w-4 h-4" />
-                <span>Interactive White-Label Simulation</span>
-              </div>
-              <h3 className="text-2xl font-black text-white">
-                Enter Your Hospital or Clinic Name
-              </h3>
-              <p className="text-xs text-slate-400">
-                The entire operating system will automatically rebrand to your facility name so you can see exactly how it looks for your hospital.
-              </p>
-            </div>
-
-            <form onSubmit={handleLaunchDemo} className="space-y-4 text-xs">
-              <div>
-                <label className="block font-bold text-slate-300 mb-1.5">
-                  Hospital / Clinic Name:
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={hospitalInput}
-                  onChange={(e) => setHospitalInput(e.target.value)}
-                  placeholder="e.g. Apollo Multi-Specialty Hospital"
-                  className="w-full px-4 py-3 rounded-xl border border-slate-700 bg-slate-800 text-white font-medium text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  autoFocus
-                />
-              </div>
-
-              {/* Quick Presets */}
-              <div className="space-y-1.5">
-                <span className="text-[10px] font-bold uppercase text-slate-400">
-                  Quick Name Presets:
-                </span>
-                <div className="flex flex-wrap gap-1.5">
-                  {[
-                    "Apex Multi-Specialty Hospital",
-                    "Apollo Health City",
-                    "Max Care Clinic",
-                    "Fortis Heart Pavilion",
-                    "LifeLine Nursing Home",
-                  ].map((preset) => (
-                    <button
-                      key={preset}
-                      type="button"
-                      onClick={() => setHospitalInput(preset)}
-                      className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-medium border border-slate-700 transition"
-                    >
-                      {preset}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Choose Role */}
-              <div className="pt-2">
-                <label className="block font-bold text-slate-300 mb-1.5">
-                  Choose Initial Demo Role to Experience:
-                </label>
-                <div className="grid grid-cols-3 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedRole("admin")}
-                    className={`p-3 rounded-xl border text-center transition ${
-                      selectedRole === "admin"
-                        ? "bg-emerald-950 border-emerald-500 text-emerald-300 font-bold"
-                        : "bg-slate-800 border-slate-700 text-slate-400"
-                    }`}
-                  >
-                    <span className="block text-base mb-0.5">🏥</span>
-                    <span className="text-[11px]">Hospital Admin</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setSelectedRole("doctor")}
-                    className={`p-3 rounded-xl border text-center transition ${
-                      selectedRole === "doctor"
-                        ? "bg-teal-950 border-teal-500 text-teal-300 font-bold"
-                        : "bg-slate-800 border-slate-700 text-slate-400"
-                    }`}
-                  >
-                    <span className="block text-base mb-0.5">🩺</span>
-                    <span className="text-[11px]">Doctor Console</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setSelectedRole("patient")}
-                    className={`p-3 rounded-xl border text-center transition ${
-                      selectedRole === "patient"
-                        ? "bg-cyan-950 border-cyan-500 text-cyan-300 font-bold"
-                        : "bg-slate-800 border-slate-700 text-slate-400"
-                    }`}
-                  >
-                    <span className="block text-base mb-0.5">🧑‍🦱</span>
-                    <span className="text-[11px]">Patient App</span>
-                  </button>
-                </div>
-              </div>
-
-              <div className="pt-4">
-                <button
-                  type="submit"
-                  disabled={isLaunching}
-                  className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-sm shadow-xl transition disabled:opacity-50"
-                >
-                  {isLaunching ? "Rebranding & Loading System…" : `Launch Demo as "${hospitalInput || "Hospital"}" →`}
-                </button>
-              </div>
-            </form>
+            <a
+              href="mailto:lochan.jangid@healthcare-tech.dev"
+              className="inline-flex items-center gap-2 px-6 py-4 rounded-2xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-sm border border-slate-700 transition"
+            >
+              <Mail className="w-4 h-4 text-emerald-400" />
+              <span>Email Lochan Jangid</span>
+            </a>
           </div>
         </div>
-      )}
+      </section>
     </main>
   );
 }

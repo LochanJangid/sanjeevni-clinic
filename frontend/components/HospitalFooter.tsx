@@ -77,8 +77,8 @@ export default function HospitalFooter() {
             <Link href="/billing" className="text-slate-300 hover:text-white transition">
               Billing &amp; Receipts
             </Link>
-            <Link href="/pricing" className="text-slate-300 hover:text-white transition">
-              Hospital Plans
+            <Link href="/prescriptions" className="text-slate-300 hover:text-white transition">
+              Prescriptions
             </Link>
           </div>
         </div>

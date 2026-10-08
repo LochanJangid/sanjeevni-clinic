@@ -86,7 +86,7 @@ export default function SiteHeader() {
 
   function signOut() {
     clearAuthSession();
-    router.push("/");
+    router.push("/login");
   }
 
   async function handleDemoSwitch(targetRole: "patient" | "doctor" | "admin") {
@@ -177,16 +177,6 @@ export default function SiteHeader() {
             >
               Hospital {t.adminRole}
             </button>
-
-            {pathname !== "/" && (
-              <Link
-                href="/"
-                className="hidden md:inline-flex items-center gap-1 px-3 py-1 rounded-full bg-emerald-600/90 hover:bg-emerald-500 text-white text-[10px] font-bold shadow-xs transition ml-2"
-              >
-                <ArrowLeft className="w-3 h-3" />
-                <span>Lochan&apos;s Sales Portal</span>
-              </Link>
-            )}
           </div>
         </div>
       </div>
@@ -194,7 +184,7 @@ export default function SiteHeader() {
       {/* Main Header */}
       <header className="site-header">
         <div className="site-header-inner">
-          <Link className="brand" href={pathname === "/" ? "/" : "/dashboard"} aria-label="Hospital home">
+          <Link className="brand" href="/dashboard" aria-label="Hospital home">
             <span className="brand-mark" aria-hidden="true">+</span>
             <span>
               <span className="brand-name">{hospitalName}</span>
@@ -264,8 +254,8 @@ export default function SiteHeader() {
               {t.records}
             </Link>
 
-            <Link href="/pricing" className={`nav-link ${pathname === "/pricing" || pathname === "/hospital-plans" ? "active" : ""}`}>
-              Hospital Plans &amp; ROI
+            <Link href="/billing" className={`nav-link ${pathname === "/billing" ? "active" : ""}`}>
+              Billing &amp; Invoices
             </Link>
           </nav>
 
@@ -350,8 +340,8 @@ export default function SiteHeader() {
               <Link href="/vaccinations" onClick={() => setMobileMenuOpen(false)} className="p-2 bg-slate-50 rounded-lg font-medium">
                 💉 Vaccines
               </Link>
-              <Link href="/pricing" onClick={() => setMobileMenuOpen(false)} className="p-2 bg-slate-50 rounded-lg font-medium">
-                💰 Pricing &amp; ROI
+              <Link href="/billing" onClick={() => setMobileMenuOpen(false)} className="p-2 bg-slate-50 rounded-lg font-medium">
+                💳 Billing &amp; Invoices
               </Link>
             </div>
           </div>

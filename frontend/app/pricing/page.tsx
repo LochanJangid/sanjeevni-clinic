@@ -27,6 +27,7 @@ import {
   Video,
   X,
 } from "lucide-react";
+import { openDemoModal } from "../../components/LaunchLiveDemoModal";
 
 interface Plan {
   id: string;
@@ -573,8 +574,21 @@ export default function PricingAndPlansPage() {
             </div>
           </div>
 
+          {/* Demo Callout Strip */}
+          <div className="pt-6 flex flex-wrap items-center justify-center gap-3">
+            <button
+              type="button"
+              onClick={() => openDemoModal("admin")}
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-xs shadow-lg shadow-emerald-950/40 transition transform hover:-translate-y-0.5"
+            >
+              <Building2 className="w-4 h-4 text-slate-950" />
+              <span>Launch Live Demo with Your Hospital Name</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
+
           {/* Billing Frequency Toggle */}
-          <div className="pt-8 flex items-center justify-center gap-3">
+          <div className="pt-6 flex items-center justify-center gap-3">
             <span
               className={`text-xs font-bold transition ${
                 !annual ? "text-white" : "text-slate-400"
@@ -996,14 +1010,17 @@ export default function PricingAndPlansPage() {
                   Our clinical deployment engineer will contact {pilotForm.contactName || "you"} at {pilotForm.phone || "your number"} within 2 business hours with dedicated pilot credentials.
                 </p>
                 <div className="pt-2">
-                  <Link
-                    href="/dashboard"
-                    onClick={() => setShowPilotModal(false)}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowPilotModal(false);
+                      openDemoModal("admin");
+                    }}
                     className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-emerald-700 text-white font-bold text-xs hover:bg-emerald-800 transition"
                   >
-                    <span>Explore Live Sandbox Demo</span>
+                    <span>Launch Live System Demo</span>
                     <ArrowRight className="w-4 h-4" />
-                  </Link>
+                  </button>
                 </div>
               </div>
             ) : (
