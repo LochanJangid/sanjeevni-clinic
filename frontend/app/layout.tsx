@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist } from "next/font/google";
+import { Suspense } from "react";
 import "./globals.css";
 import AppEnvironmentShell from "../components/AppEnvironmentShell";
 
@@ -27,7 +28,9 @@ export default function RootLayout({
       className={`${geistSans.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <AppEnvironmentShell>{children}</AppEnvironmentShell>
+        <Suspense fallback={<div className="min-h-screen bg-slate-950" />}>
+          <AppEnvironmentShell>{children}</AppEnvironmentShell>
+        </Suspense>
       </body>
     </html>
   );

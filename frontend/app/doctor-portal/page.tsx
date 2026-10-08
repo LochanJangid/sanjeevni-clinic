@@ -37,6 +37,55 @@ interface ScheduleSlot {
 const dayNames = ["", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
+const QUICK_DIAGNOSES = [
+  "Acute Viral Fever / Pyrexia",
+  "Type 2 Diabetes Mellitus (T2DM)",
+  "Primary Hypertension (HTN)",
+  "Acute Upper Respiratory Infection",
+  "Dyspepsia & Acid Peptic Disease",
+  "Acute Gastroenteritis",
+  "Lumbar Spondylosis / Low Backache",
+];
+
+const RX_TEMPLATES = [
+  {
+    name: "🌡️ Viral Fever Protocol",
+    diagnosis: "Acute Viral Upper Respiratory Infection with Pyrexia",
+    meds: [
+      { medicine_name: "Tab Dolo 650 (Paracetamol)", dosage: "1 Tab", frequency: "1-0-1 (Twice daily after meals)", duration: "5 Days", instructions: "Take with warm water; SOS if fever > 100°F" },
+      { medicine_name: "Tab Levocetirizine 5mg", dosage: "1 Tab", frequency: "0-0-1 (At bedtime)", duration: "5 Days", instructions: "May cause mild drowsiness" },
+      { medicine_name: "Cap Pantoprazole 40mg", dosage: "1 Cap", frequency: "1-0-0 (Morning empty stomach)", duration: "5 Days", instructions: "Take 30 mins before breakfast" },
+    ],
+    instructions: "Drink plenty of warm boiled water. Steam inhalation twice daily. Review if fever persists after 3 days.",
+  },
+  {
+    name: "🩺 Chronic HTN + Diabetes Refill",
+    diagnosis: "Known Type-2 Diabetes Mellitus with Essential Hypertension",
+    meds: [
+      { medicine_name: "Tab Telmisartan 40mg", dosage: "1 Tab", frequency: "1-0-0 (Morning)", duration: "30 Days", instructions: "Take daily with morning meal" },
+      { medicine_name: "Tab Metformin 500mg SR", dosage: "1 Tab", frequency: "1-0-1 (After breakfast & dinner)", duration: "30 Days", instructions: "Take immediately after food" },
+    ],
+    instructions: "Strict low salt diet (< 3g/day). 30 mins daily brisk walk. Maintain blood pressure and glucose log.",
+  },
+  {
+    name: "🫄 Gastritis & GERD Protocol",
+    diagnosis: "Acute Dyspepsia with Gastroesophageal Reflux",
+    meds: [
+      { medicine_name: "Cap Pantoprazole 40mg + Domperidone 30mg SR", dosage: "1 Cap", frequency: "1-0-0 (Empty stomach)", duration: "10 Days", instructions: "Take early morning 45 mins before breakfast" },
+      { medicine_name: "Syp Gelusil MPS", dosage: "2 Tsp", frequency: "1-1-1 (After meals & bedtime)", duration: "7 Days", instructions: "Shake well before use" },
+    ],
+    instructions: "Avoid spicy/fried foods and tea/coffee. Early dinner at least 2 hours before bedtime.",
+  },
+];
+
+const QUICK_LAB_TESTS = [
+  { id: 1, code: "CBC", name: "CBC with ESR" },
+  { id: 2, code: "LIPID", name: "Lipid Profile" },
+  { id: 3, code: "KFT", name: "KFT (Kidney Panel)" },
+  { id: 4, code: "LFT", name: "LFT (Liver Panel)" },
+  { id: 5, code: "HBA1C", name: "HbA1c Blood Sugar" },
+];
+
 export default function DoctorPortalPage() {
   const [appointments, setAppointments] = useState<AppointmentItem[]>([]);
   const [schedules, setSchedules] = useState<ScheduleSlot[]>([]);
@@ -70,6 +119,55 @@ export default function DoctorPortalPage() {
   ]);
   const [submitting, setSubmitting] = useState(false);
   const [successToast, setSuccessToast] = useState("");
+  const [orderedLabs, setOrderedLabs] = useState<string[]>([]);
+  const [labOrdering, setLabOrdering] = useState(false);
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.altKey && (e.key === "n" || e.key === "N")) {
+        e.preventDefault();
+        const nextAppt = appointments.find((a) => a.status === "booked" || a.status === "checked_in");
+        if (nextAppt) {
+          setConsultingAppt(nextAppt);
+          setSuccessToast("");
+        }
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [appointments]);
+
+  function handleApplyTemplate(tmpl: (typeof RX_TEMPLATES)[0]) {
+    setDiagnosis(tmpl.diagnosis);
+    setMedicines(tmpl.meds);
+    setInstructions(tmpl.instructions);
+  }
+
+  async function handleOrderQuickLab(test: (typeof QUICK_LAB_TESTS)[0]) {
+    if (!consultingAppt) return;
+    setLabOrdering(true);
+    try {
+      const res = await fetch(`${API_URL}/pharmacy-lab/lab/orders`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          uhid: `UHID-PAT-${consultingAppt.user_id}`,
+          patient_name: consultingAppt.patient_name,
+          doctor_name: doctorName || "Attending Physician",
+          test_id: test.id,
+          clinical_notes: `Direct OPD requisition by doctor. Diagnosis: ${diagnosis || "Under evaluation"}`,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setOrderedLabs((prev) => [...prev, `${test.code} (${data.barcode})`]);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLabOrdering(false);
+    }
+  }
 
   async function loadDoctorData() {
     const token = getAuthToken();
@@ -85,11 +183,10 @@ export default function DoctorPortalPage() {
     }
 
     setDoctorName(claims.username || "Doctor");
-    const docId = claims.doctor_id || 1; // Default to Dr. Sharma if not set
+    const docId = claims.doctor_id || 1;
     setDoctorId(docId);
 
     try {
-      // Fetch doctor's appointments
       const apptRes = await fetch(`${API_URL}/admin/appointments?doctor_id=${docId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -98,7 +195,6 @@ export default function DoctorPortalPage() {
         setAppointments(Array.isArray(data) ? data : []);
       }
 
-      // Fetch weekly availability schedule
       const schedRes = await fetch(`${API_URL}/doctors/${docId}/availability`);
       if (schedRes.ok) {
         const data = await schedRes.json();
@@ -388,9 +484,32 @@ export default function DoctorPortalPage() {
                 <span className="check-icon">✓</span> {successToast}
               </div>
             ) : (
-              <form onSubmit={handleIssuePrescription} className="consult-form">
+              <form onSubmit={handleIssuePrescription} className="consult-form space-y-4">
+                {/* Protocol Templates Bar */}
+                <div className="bg-slate-50 dark:bg-slate-800/60 p-3 rounded-lg border border-slate-200 dark:border-slate-700">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">⚡ 1-Click Clinical Rx Protocols (60-80 Patients/Day Speed):</span>
+                    <span className="text-[11px] text-muted">Shortcut: <kbd className="px-1.5 py-0.5 bg-slate-200 dark:bg-slate-700 rounded text-[10px]">Alt+N</kbd> next</span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {RX_TEMPLATES.map((tmpl, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => handleApplyTemplate(tmpl)}
+                        className="px-2.5 py-1 text-xs font-medium rounded-full bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:border-blue-500 hover:text-blue-600 transition shadow-sm"
+                      >
+                        {tmpl.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Diagnosis & Quick Chips */}
                 <div className="form-group">
-                  <label className="input-label">Clinical Diagnosis & Symptoms *</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="input-label mb-0">Clinical Diagnosis & Symptoms *</label>
+                  </div>
                   <input
                     type="text"
                     required
@@ -399,87 +518,171 @@ export default function DoctorPortalPage() {
                     onChange={(e) => setDiagnosis(e.target.value)}
                     className="form-input"
                   />
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {QUICK_DIAGNOSES.map((d, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => setDiagnosis(d)}
+                        className="text-[11px] px-2 py-0.5 rounded bg-slate-100 hover:bg-blue-100 hover:text-blue-800 text-slate-700 dark:bg-slate-800 dark:text-slate-300 transition"
+                      >
+                        + {d}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
+                {/* Prescribed Medications */}
                 <div className="form-group">
                   <div className="flex justify-between items-center mb-2">
-                    <label className="input-label mb-0">Prescribed Medications ℞</label>
+                    <label className="input-label mb-0 font-semibold">Prescribed Medications ℞</label>
                     <button
                       type="button"
                       onClick={handleAddMedicine}
-                      className="button button-quiet text-xs py-1 px-2"
+                      className="button button-quiet text-xs py-1 px-2.5"
                     >
                       + Add Medication
                     </button>
                   </div>
 
-                  <div className="meds-form-list">
+                  <div className="meds-form-list space-y-2">
                     {medicines.map((med, idx) => (
-                      <div key={idx} className="med-form-row">
-                        <div className="med-col-name">
-                          <input
-                            type="text"
-                            placeholder="Medicine Name (e.g. Paracetamol 500mg)"
-                            value={med.medicine_name}
-                            onChange={(e) => handleMedicineChange(idx, "medicine_name", e.target.value)}
-                            className="form-input"
-                            required
-                          />
+                      <div key={idx} className="p-3 bg-slate-50/70 dark:bg-slate-800/40 rounded-lg border border-slate-200 dark:border-slate-700 space-y-2">
+                        <div className="med-form-row">
+                          <div className="med-col-name flex-1">
+                            <input
+                              type="text"
+                              placeholder="Medicine Name (e.g. Paracetamol 650mg)"
+                              value={med.medicine_name}
+                              onChange={(e) => handleMedicineChange(idx, "medicine_name", e.target.value)}
+                              className="form-input text-sm"
+                              required
+                            />
+                          </div>
+                          <div className="med-col-dosage w-28">
+                            <input
+                              type="text"
+                              placeholder="Dosage (1 Tab)"
+                              value={med.dosage}
+                              onChange={(e) => handleMedicineChange(idx, "dosage", e.target.value)}
+                              className="form-input text-sm"
+                            />
+                          </div>
+                          <div className="med-col-freq w-44">
+                            <input
+                              type="text"
+                              placeholder="Freq (1-0-1)"
+                              value={med.frequency}
+                              onChange={(e) => handleMedicineChange(idx, "frequency", e.target.value)}
+                              className="form-input text-sm"
+                            />
+                          </div>
+                          <div className="med-col-dur w-28">
+                            <input
+                              type="text"
+                              placeholder="Dur (5 Days)"
+                              value={med.duration}
+                              onChange={(e) => handleMedicineChange(idx, "duration", e.target.value)}
+                              className="form-input text-sm"
+                            />
+                          </div>
+                          {medicines.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveMedicine(idx)}
+                              className="remove-med-btn self-center"
+                              title="Remove medicine"
+                            >
+                              ×
+                            </button>
+                          )}
                         </div>
-                        <div className="med-col-dosage">
-                          <input
-                            type="text"
-                            placeholder="Dosage (1 Tab)"
-                            value={med.dosage}
-                            onChange={(e) => handleMedicineChange(idx, "dosage", e.target.value)}
-                            className="form-input"
-                          />
+
+                        {/* Quick Dosage Frequency Chips */}
+                        <div className="flex items-center gap-1.5 text-[11px] pt-1">
+                          <span className="text-muted text-[10px]">Quick:</span>
+                          {[
+                            { label: "1-0-1 (After Food)", val: "1-0-1 (Twice daily after food)" },
+                            { label: "1-0-0 (Empty Stomach)", val: "1-0-0 (Morning empty stomach)" },
+                            { label: "0-0-1 (Bedtime)", val: "0-0-1 (At bedtime)" },
+                            { label: "1-1-1 (TID)", val: "1-1-1 (Thrice daily)" },
+                            { label: "SOS (As Needed)", val: "SOS (When needed)" },
+                          ].map((chip, cIdx) => (
+                            <button
+                              key={cIdx}
+                              type="button"
+                              onClick={() => handleMedicineChange(idx, "frequency", chip.val)}
+                              className="px-1.5 py-0.5 rounded bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-blue-50 text-[10px] text-slate-700 dark:text-slate-300"
+                            >
+                              {chip.label}
+                            </button>
+                          ))}
                         </div>
-                        <div className="med-col-freq">
-                          <input
-                            type="text"
-                            placeholder="Frequency (Twice daily)"
-                            value={med.frequency}
-                            onChange={(e) => handleMedicineChange(idx, "frequency", e.target.value)}
-                            className="form-input"
-                          />
-                        </div>
-                        <div className="med-col-dur">
-                          <input
-                            type="text"
-                            placeholder="Duration (5 Days)"
-                            value={med.duration}
-                            onChange={(e) => handleMedicineChange(idx, "duration", e.target.value)}
-                            className="form-input"
-                          />
-                        </div>
-                        {medicines.length > 1 && (
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveMedicine(idx)}
-                            className="remove-med-btn"
-                            title="Remove medicine"
-                          >
-                            ×
-                          </button>
-                        )}
                       </div>
                     ))}
                   </div>
                 </div>
 
+                {/* Instant Lab Test Requisition */}
+                <div className="p-3 bg-indigo-50/50 dark:bg-indigo-950/20 rounded-lg border border-indigo-100 dark:border-indigo-900/40">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-xs font-semibold text-indigo-900 dark:text-indigo-300">🧪 Order Diagnostic Investigations (Direct Requisition):</span>
+                    {labOrdering && <span className="text-xs text-indigo-600 animate-pulse">Generating Barcode…</span>}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {QUICK_LAB_TESTS.map((t) => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        disabled={labOrdering}
+                        onClick={() => handleOrderQuickLab(t)}
+                        className="px-2 py-1 text-xs font-medium rounded bg-white dark:bg-slate-800 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100 text-indigo-900 dark:text-indigo-200 transition"
+                      >
+                        + {t.name}
+                      </button>
+                    ))}
+                  </div>
+                  {orderedLabs.length > 0 && (
+                    <div className="mt-2 text-xs text-emerald-700 dark:text-emerald-400 font-medium flex items-center gap-1">
+                      <span>✓ Requisitions Created:</span>
+                      <span className="underline">{orderedLabs.join(", ")}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Doctor's Advice & Bilingual Hindi Presets */}
                 <div className="form-group">
-                  <label className="input-label">Doctor&apos;s Advice & Follow-Up Notes</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="input-label mb-0">Doctor&apos;s Advice & Follow-Up Notes</label>
+                    <div className="flex gap-1 text-[11px]">
+                      <span className="text-muted">हिन्दी निर्देश:</span>
+                      {[
+                        "खाना खाने के बाद लें",
+                        "सुबह खाली पेट लें",
+                        "पर्याप्त पानी पिएं व आराम करें",
+                        "7 दिन बाद पुनः दिखाएं",
+                      ].map((txt, hIdx) => (
+                        <button
+                          key={hIdx}
+                          type="button"
+                          onClick={() => setInstructions((prev) => (prev ? `${prev}. ${txt}` : txt))}
+                          className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-[10px]"
+                        >
+                          + {txt}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                   <textarea
-                    rows={3}
+                    rows={2}
                     placeholder="e.g. Drink plenty of warm fluids, rest for 3 days. Review in 1 week if symptoms persist."
                     value={instructions}
                     onChange={(e) => setInstructions(e.target.value)}
-                    className="form-input"
+                    className="form-input text-sm"
                   />
                 </div>
 
-                <div className="modal-actions mt-4">
+                <div className="modal-actions mt-4 flex items-center justify-between">
                   <button
                     type="button"
                     onClick={() => setConsultingAppt(null)}

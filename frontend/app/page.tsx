@@ -12,6 +12,7 @@ import {
   Calendar,
   Check,
   CheckCircle2,
+  ChevronDown,
   ChevronRight,
   Clock,
   Code2,
@@ -24,6 +25,7 @@ import {
   FileText,
   FlaskConical,
   HeartHandshake,
+  HelpCircle,
   Layers,
   Lock,
   Mail,
@@ -38,6 +40,7 @@ import {
   Sparkles,
   Stethoscope,
   TrendingUp,
+  Truck,
   Tv,
   UserCheck,
   Users,
@@ -52,14 +55,53 @@ import { openDemoModal } from "../components/LaunchLiveDemoModal";
 export default function SellingSitePage() {
   const router = useRouter();
 
+  // Interactive ROI Calculator State
+  const [dailyPatients, setDailyPatients] = useState<number>(60);
+  const [inpatientBeds, setInpatientBeds] = useState<number>(20);
+
+  // FAQ Accordion State
+  const [openFaq, setOpenFaq] = useState<number | null>(null);
+
   function handleOpenDemoModal(preferredRole?: "patient" | "doctor" | "admin") {
     openDemoModal(preferredRole || "admin");
   }
 
+  // Calculate Hospital ROI metrics
+  const monthlyPatients = dailyPatients * 26; // 26 working days
+  const billingDiscrepanciesSaved = Math.round(monthlyPatients * 45); // Avg ₹45 leakage prevented per consult
+  const staffHoursSaved = Math.round(dailyPatients * 0.15 * 26); // Queue and slip handling time
+  const estimatedRevenue = monthlyPatients * 500;
+
+  const faqs = [
+    {
+      q: "How does the PhonePe Merchant Dynamic QR integration work?",
+      a: "The reception counter or patient scans a dynamically generated UPI QR code that embeds the doctor's consultation fee, patient UHID, and appointment ID. Payment settles directly into the hospital or doctor's bank account with 0% platform intermediary commission. An official GST-compliant tax receipt (SJ-REC) is instantly generated.",
+    },
+    {
+      q: "Can this system run on local hospital computers without high-speed internet?",
+      a: "Yes. The entire operating system is architected with a decoupled FastAPI + PostgreSQL backend that can run on an on-premise local mini-server inside the hospital intranet. OPD TV chimes, doctor chamber calls, and patient queue tokens operate seamlessly over local Wi-Fi / LAN even if the internet goes down.",
+    },
+    {
+      q: "What hardware is required for the Live OPD Waiting Room TV display?",
+      a: "Any smart TV, HDMI monitor, or standard LED television equipped with an inexpensive Android TV stick or Fire TV stick. Simply open the browser to the `/opd-queue` URL in fullscreen mode. It features an automated two-tone chime (Web Audio API) and token marquee with zero external hardware encoders required.",
+    },
+    {
+      q: "How does the system protect clinical records under India's DPDP Act 2023?",
+      a: "All patient demographic updates, prescription access, and appointment logs are recorded in immutable append-only audit trails. Patient data cannot be deleted without an authorized admin audit entry. Built-in consent logging and ABHA sandbox readiness ensure full regulatory compliance.",
+    },
+    {
+      q: "What is included with annual licensing or buyout delivery from Lochan Jangid?",
+      a: "Lochan Jangid provides complete turnkey setup, hospital custom branding (hospital name, logos, custom domain SSL), staff training, 1-click database export utilities (CSV/SQL), and a legal software escrow clause for total autonomy and peace of mind.",
+    },
+  ];
+
   return (
     <main className="min-h-screen bg-slate-900 text-slate-100 selection:bg-emerald-500 selection:text-white">
       {/* 1. EXECUTIVE COMMERCIAL HERO BANNER */}
-      <section id="hero" className="relative overflow-hidden pt-12 pb-24 border-b border-slate-800 bg-gradient-to-b from-slate-950 via-slate-900 to-emerald-950/40">
+      <section
+        id="hero"
+        className="relative overflow-hidden pt-12 pb-24 border-b border-slate-800 bg-gradient-to-b from-slate-950 via-slate-900 to-emerald-950/40"
+      >
         {/* Ambient glow backgrounds */}
         <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] bg-emerald-500/10 blur-[120px] rounded-full pointer-events-none" />
         <div className="absolute top-10 right-10 w-[400px] h-[300px] bg-purple-500/10 blur-[100px] rounded-full pointer-events-none" />
@@ -81,7 +123,7 @@ export default function SellingSitePage() {
 
           {/* Pitch Subtitle mentioning Lochan Jangid */}
           <p className="mt-6 text-base sm:text-xl text-slate-300 max-w-3xl mx-auto leading-relaxed">
-            Architected and engineered by <strong className="text-white font-bold">Lochan Jangid</strong>. A full-scale, production-ready operating system delivering complete <strong>Patient</strong>, <strong>Doctor</strong>, and <strong>Hospital Admin</strong> portals, live OPD TV waiting room signage, PhonePe direct doctor settlement, and inpatient bed tracking.
+            Architected and engineered by <strong className="text-white font-bold">Lochan Jangid</strong>. A full-scale, production-ready operating system delivering complete <strong>Patient</strong>, <strong>Doctor</strong>, and <strong>Hospital Admin</strong> portals, live OPD TV waiting room signage with audio chimes, PhonePe direct doctor settlement, and inpatient bed census.
           </p>
 
           {/* Core Interactive Action Buttons */}
@@ -332,7 +374,7 @@ export default function SellingSitePage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                  <span>Text-to-speech audio announcement in waiting room</span>
+                  <span>Integrated WebAudio arrival chime in waiting hall</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-emerald-400" />
@@ -599,8 +641,113 @@ export default function SellingSitePage() {
         </div>
       </section>
 
-      {/* 4. COMMERCIAL PACKAGING & SOURCE CODE LICENSING */}
-      <section id="architecture" className="py-20 bg-slate-950 border-t border-slate-800">
+      {/* 4. INTERACTIVE HOSPITAL SAVINGS & ROI CALCULATOR */}
+      <section className="py-20 bg-slate-950 border-t border-slate-800">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center max-w-3xl mx-auto mb-12 space-y-2">
+            <span className="text-xs font-bold uppercase tracking-widest text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
+              Interactive Commercial Calculator
+            </span>
+            <h2 className="text-3xl sm:text-4xl font-black text-white tracking-tight">
+              Calculate Your Hospital&apos;s Return on Investment (ROI)
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-400">
+              See how eliminating cash discrepancies, slip printing, and waiting hall bottlenecks pays for this software in under 30 days.
+            </p>
+          </div>
+
+          <div className="bg-slate-900 border-2 border-slate-800 rounded-3xl p-6 sm:p-10 shadow-2xl grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+            {/* Sliders Column */}
+            <div className="lg:col-span-7 space-y-6">
+              {/* Daily OPD Patients Slider */}
+              <div className="space-y-2">
+                <div className="flex justify-between items-baseline text-xs">
+                  <label className="font-bold text-slate-300 uppercase tracking-wider">
+                    Average Daily OPD Consultations:
+                  </label>
+                  <strong className="text-emerald-400 text-lg font-mono">{dailyPatients} Patients / Day</strong>
+                </div>
+                <input
+                  type="range"
+                  min={10}
+                  max={250}
+                  step={5}
+                  value={dailyPatients}
+                  onChange={(e) => setDailyPatients(parseInt(e.target.value, 10))}
+                  className="w-full accent-emerald-500 cursor-pointer h-2 bg-slate-800 rounded-lg"
+                />
+                <div className="flex justify-between text-[10px] text-slate-500">
+                  <span>10 (Chamber)</span>
+                  <span>100 (Polyclinic)</span>
+                  <span>250+ (Hospital)</span>
+                </div>
+              </div>
+
+              {/* Inpatient Beds Slider */}
+              <div className="space-y-2">
+                <div className="flex justify-between items-baseline text-xs">
+                  <label className="font-bold text-slate-300 uppercase tracking-wider">
+                    Active Inpatient (IPD) Beds:
+                  </label>
+                  <strong className="text-teal-400 text-lg font-mono">{inpatientBeds} Hospital Beds</strong>
+                </div>
+                <input
+                  type="range"
+                  min={5}
+                  max={100}
+                  step={5}
+                  value={inpatientBeds}
+                  onChange={(e) => setInpatientBeds(parseInt(e.target.value, 10))}
+                  className="w-full accent-teal-500 cursor-pointer h-2 bg-slate-800 rounded-lg"
+                />
+                <div className="flex justify-between text-[10px] text-slate-500">
+                  <span>5 Beds</span>
+                  <span>50 Beds</span>
+                  <span>100+ Beds</span>
+                </div>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800 text-xs space-y-2 text-slate-400">
+                <div className="flex items-center gap-2 text-slate-300">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                  <span>Estimated Monthly Consultations: <strong className="text-white">{monthlyPatients.toLocaleString()} visits</strong></span>
+                </div>
+                <div className="flex items-center gap-2 text-slate-300">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                  <span>Staff Hours Saved in Token Calling: <strong className="text-white">{staffHoursSaved} hours / month</strong></span>
+                </div>
+              </div>
+            </div>
+
+            {/* ROI Results Column */}
+            <div className="lg:col-span-5 bg-gradient-to-br from-slate-950 via-slate-900 to-emerald-950/60 p-6 rounded-2xl border border-emerald-500/30 text-center space-y-4 shadow-xl">
+              <span className="text-[10px] uppercase font-bold text-emerald-400 tracking-wider block">
+                Estimated Monthly Value Delivered
+              </span>
+              <div className="text-4xl font-black text-white font-mono">
+                ₹{billingDiscrepanciesSaved.toLocaleString()}
+              </div>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Saved each month through eliminated billing shrinkage, automated SMS slips, and reduced reception wait-hall crowding.
+              </p>
+
+              <div className="pt-2 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => handleOpenDemoModal("admin")}
+                  className="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-xs shadow-lg transition flex items-center justify-center gap-2"
+                >
+                  <Building2 className="w-4 h-4 text-slate-950" />
+                  <span>Test Live with Your Hospital Name</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 5. COMMERCIAL PACKAGING & SOURCE CODE LICENSING */}
+      <section id="architecture" className="py-20 bg-slate-900 border-t border-slate-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto mb-14 space-y-3">
             <span className="text-xs font-bold uppercase tracking-widest text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
@@ -615,7 +762,7 @@ export default function SellingSitePage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div className="p-6 rounded-3xl bg-slate-900 border border-slate-800 space-y-3">
+            <div className="p-6 rounded-3xl bg-slate-950 border border-slate-800 space-y-3">
               <span className="text-2xl">🛡️</span>
               <h4 className="text-base font-bold text-white">Annual License &amp; Escrow</h4>
               <p className="text-xs text-slate-400 leading-relaxed">
@@ -623,7 +770,7 @@ export default function SellingSitePage() {
               </p>
             </div>
 
-            <div className="p-6 rounded-3xl bg-slate-900 border border-slate-800 space-y-3">
+            <div className="p-6 rounded-3xl bg-slate-950 border border-slate-800 space-y-3">
               <span className="text-2xl">🏷️</span>
               <h4 className="text-base font-bold text-white">White-Label Branding</h4>
               <p className="text-xs text-slate-400 leading-relaxed">
@@ -631,7 +778,7 @@ export default function SellingSitePage() {
               </p>
             </div>
 
-            <div className="p-6 rounded-3xl bg-slate-900 border border-slate-800 space-y-3">
+            <div className="p-6 rounded-3xl bg-slate-950 border border-slate-800 space-y-3">
               <span className="text-2xl">☁️</span>
               <h4 className="text-base font-bold text-white">Turnkey Deployment</h4>
               <p className="text-xs text-slate-400 leading-relaxed">
@@ -639,7 +786,7 @@ export default function SellingSitePage() {
               </p>
             </div>
 
-            <div className="p-6 rounded-3xl bg-slate-900 border border-slate-800 space-y-3">
+            <div className="p-6 rounded-3xl bg-slate-950 border border-slate-800 space-y-3">
               <span className="text-2xl">🤝</span>
               <h4 className="text-base font-bold text-white">Direct Support</h4>
               <p className="text-xs text-slate-400 leading-relaxed">
@@ -650,7 +797,51 @@ export default function SellingSitePage() {
         </div>
       </section>
 
-      {/* 5. ABOUT THE DEVELOPER — LOCHAN JANGID SECTION */}
+      {/* 6. FAQ ACCORDION SECTION */}
+      <section className="py-20 bg-slate-950 border-t border-slate-800">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+          <div className="text-center space-y-2">
+            <span className="text-xs font-bold uppercase tracking-widest text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
+              Frequently Asked Questions
+            </span>
+            <h2 className="text-3xl font-black text-white tracking-tight">
+              Hospital Owner &amp; Medical Director FAQ
+            </h2>
+          </div>
+
+          <div className="space-y-3">
+            {faqs.map((faq, idx) => {
+              const isOpen = openFaq === idx;
+              return (
+                <div
+                  key={idx}
+                  className="rounded-2xl bg-slate-900 border border-slate-800 overflow-hidden transition"
+                >
+                  <button
+                    type="button"
+                    onClick={() => setOpenFaq(isOpen ? null : idx)}
+                    className="w-full p-5 text-left flex items-center justify-between gap-4 font-bold text-sm text-white hover:text-emerald-400 transition"
+                  >
+                    <span>{faq.q}</span>
+                    <ChevronDown
+                      className={`w-4 h-4 text-emerald-400 transition-transform ${
+                        isOpen ? "rotate-180" : ""
+                      }`}
+                    />
+                  </button>
+                  {isOpen && (
+                    <div className="p-5 pt-0 text-xs text-slate-300 leading-relaxed border-t border-slate-800/60 mt-1">
+                      {faq.a}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* 7. ABOUT THE DEVELOPER — LOCHAN JANGID SECTION */}
       <section id="developer" className="py-20 bg-gradient-to-b from-slate-900 to-slate-950 border-t border-slate-800">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="rounded-3xl bg-slate-900/90 border-2 border-emerald-500/30 p-8 sm:p-12 shadow-2xl relative overflow-hidden">
@@ -694,7 +885,7 @@ export default function SellingSitePage() {
         </div>
       </section>
 
-      {/* 6. CONTACT & DEPLOYMENT INQUIRIES SECTION */}
+      {/* 8. CONTACT & DEPLOYMENT INQUIRIES SECTION */}
       <section id="contact" className="py-20 bg-slate-900 border-t border-slate-800">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-6">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-500/10 text-teal-300 text-xs font-bold uppercase tracking-wider border border-teal-500/20">
