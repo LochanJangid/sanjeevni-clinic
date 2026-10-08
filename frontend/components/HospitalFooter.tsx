@@ -97,7 +97,7 @@ export default function HospitalFooter() {
               Architected &amp; Built by <span className="text-emerald-400">Lochan Jangid</span>
             </h4>
             <p className="text-xs text-slate-300 leading-relaxed">
-              Full-Stack Healthcare Software Engineer. Providing production-grade patient, doctor, and admin hospital systems with custom branding, source code licensing, and local deployment for hospitals &amp; clinics.
+              Healthcare Software Engineer. Providing reliable patient, doctor, and admin hospital systems with custom branding, annual licensing with software escrow, and local deployment for hospitals &amp; clinics.
             </p>
           </div>
 

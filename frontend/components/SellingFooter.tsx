@@ -176,7 +176,7 @@ export default function SellingFooter() {
               </Link>
             </li>
             <li>
-              <span className="text-slate-400">• Full Source Code Licensing (Enterprise)</span>
+              <span className="text-slate-400">• Annual License with Data Export &amp; Escrow</span>
             </li>
             <li>
               <span className="text-slate-400">• White-Label Rebranding for Your Clinic</span>

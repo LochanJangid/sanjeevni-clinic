@@ -32,16 +32,16 @@ export default function SellingHeader() {
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
             <span className="text-slate-400 font-medium">Hospital &amp; Clinic Operating System:</span>
-            <span className="text-emerald-300 font-bold">Complete Source Code, Deployment &amp; Licensing</span>
+            <span className="text-emerald-300 font-bold">Annual Licensing with Escrow, Cloud SaaS &amp; Local On-Premises</span>
           </div>
           <div className="flex items-center gap-4 text-[11px]">
             <span className="text-slate-400">
-              Architect: <strong className="text-white">Lochan Jangid</strong>
+              Engineer: <strong className="text-white">Lochan Jangid</strong>
             </span>
             <span className="hidden md:inline-block text-slate-600">•</span>
             <span className="hidden md:inline-flex items-center gap-1 text-teal-300">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Commercial Turnkey System</span>
+              <span>Turnkey HIS for 10-50 Bed Hospitals</span>
             </span>
           </div>
         </div>

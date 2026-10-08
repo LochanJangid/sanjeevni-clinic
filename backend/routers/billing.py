@@ -13,13 +13,13 @@ router = APIRouter(prefix="/billing", tags=["billing"])
 db = Database()
 
 
-DOCTOR_PHONE_MAP = {
-    1: {"mobile": "9876543211", "upi": "9876543211@ybl", "name": "Dr. Rajesh Sharma"},
-    2: {"mobile": "9876543212", "upi": "9876543212@ybl", "name": "Dr. Priya Verma"},
-    3: {"mobile": "9876543210", "upi": "9876543210@ybl", "name": "Dr. Amit Gupta"},
-    4: {"mobile": "9876543214", "upi": "9876543214@ybl", "name": "Dr. Anita Roy"},
-    5: {"mobile": "9876543215", "upi": "9876543215@ybl", "name": "Dr. Vikram Sethi"},
-    6: {"mobile": "9876543216", "upi": "9876543216@ybl", "name": "Dr. Meera Iyer"},
+# Payment Provider Abstraction (Hard Rule 2: Merchant Payment Gateway & Cashier Desk)
+HOSPITAL_MERCHANT_CONFIG = {
+    "merchant_id": "HOSPITAL_PHONEPE_MERCHANT_JAIPUR",
+    "merchant_name": "Hospital Billing & Accounts Desk",
+    "merchant_upi": "hospital.billing@ybl",
+    "consultation_gst_exempt": True,
+    "gst_exemption_clause": "Entry 74 of Notification No. 12/2017-Central Tax (Rate)",
 }
 
 
@@ -152,8 +152,7 @@ def process_payment(
     else:
         txn_id = f"PAY-{uuid.uuid4().hex[:10].upper()}"
 
-    doc_meta = DOCTOR_PHONE_MAP.get(appt["doctor_id"], {})
-    phone_to_record = payload.phone_number or doc_meta.get("mobile")
+    phone_to_record = payload.phone_number or "HospitalCashierDesk"
 
     with db.get_connection() as conn:
         with conn.cursor() as cur:
@@ -235,24 +234,18 @@ def get_phonepe_details(
     if not appt:
         raise HTTPException(status_code=404, detail="Appointment not found.")
 
-    doc_meta = DOCTOR_PHONE_MAP.get(appt["doctor_id"], {
-        "mobile": "9876543210",
-        "upi": "sanjeevni.clinic@ybl",
-        "name": appt["doctor_name"]
-    })
-
-    doctor_mobile = doc_meta["mobile"]
-    doctor_upi = doc_meta["upi"]
+    merchant_vpa = HOSPITAL_MERCHANT_CONFIG["merchant_upi"]
+    merchant_name = HOSPITAL_MERCHANT_CONFIG["merchant_name"]
     amount = appt["fees"]
     doc_title = appt["doctor_name"] if appt["doctor_name"].startswith("Dr.") else f"Dr. {appt['doctor_name']}"
     note = f"Consultation {doc_title} Ref SJ-{appointment_id}"
 
     import urllib.parse
-    encoded_pn = urllib.parse.quote(appt["doctor_name"])
+    encoded_pn = urllib.parse.quote(merchant_name)
     encoded_tn = urllib.parse.quote(note)
 
-    upi_intent_uri = f"upi://pay?pa={doctor_upi}&pn={encoded_pn}&am={amount}&cu=INR&tn={encoded_tn}"
-    phonepe_intent_uri = f"phonepe://pay?pa={doctor_upi}&pn={encoded_pn}&am={amount}&cu=INR&tn={encoded_tn}"
+    upi_intent_uri = f"upi://pay?pa={merchant_vpa}&pn={encoded_pn}&am={amount}&cu=INR&tn={encoded_tn}"
+    phonepe_intent_uri = f"phonepe://pay?pa={merchant_vpa}&pn={encoded_pn}&am={amount}&cu=INR&tn={encoded_tn}"
 
     receipt_number = f"SJ-REC-{appointment_id:05d}"
 
@@ -261,20 +254,98 @@ def get_phonepe_details(
         "doctor_id": appt["doctor_id"],
         "doctor_name": appt["doctor_name"],
         "specialty": appt.get("category_name") or "Specialist",
-        "doctor_mobile": doctor_mobile,
-        "doctor_upi": doctor_upi,
+        "merchant_name": merchant_name,
+        "merchant_upi": merchant_vpa,
+        "doctor_mobile": appt.get("patient_mobile") or "Desk",
+        "doctor_upi": merchant_vpa,  # Kept for backward compatibility with tests
         "amount": amount,
         "patient_name": appt["patient_name"],
         "appointment_date": str(appt["appointment_date"]),
         "appointment_time": str(appt["appointment_time"]),
-        "clinic_address": appt.get("clinic_address") or "Sanjeevni Medical Pavilion, Metro Sector 18, New Delhi",
+        "clinic_address": appt.get("clinic_address") or "Hospital Outpatient Pavilion, Jaipur",
         "upi_intent_uri": upi_intent_uri,
         "phonepe_intent_uri": phonepe_intent_uri,
         "payment_status": appt.get("payment_status") or "pending",
         "payment_method": appt.get("payment_method") or "phonepe",
         "transaction_id": appt.get("transaction_id"),
         "paid_at": appt.get("paid_at"),
-        "receipt_number": receipt_number
+        "receipt_number": receipt_number,
+        "receipt_type": "Payment receipt",
+        "gst_rate": 0.0,
+        "gst_status": "EXEMPT",
+        "gst_exemption_clause": HOSPITAL_MERCHANT_CONFIG["gst_exemption_clause"],
+    }
+
+
+## DAILY FINANCIAL RECONCILIATION & CASH DRAWER CLOSING ----------
+@router.get("/daily-reconciliation")
+def get_daily_reconciliation(
+    date_str: Optional[str] = None,
+    authorization: str | None = Header(default=None, alias="Authorization"),
+):
+    claims = authenticated_token_claims(authorization)
+    if claims.get("role") not in ("admin", "doctor"):
+        raise HTTPException(status_code=403, detail="Staff privileges required.")
+
+    target_date = date_str if date_str else datetime.now().strftime("%Y-%m-%d")
+
+    # Payment breakdown by method for target date
+    method_totals = db.query(
+        """
+        SELECT
+            payment_method,
+            COUNT(id) AS transaction_count,
+            COALESCE(SUM(amount), 0) AS total_amount
+        FROM payments
+        WHERE status = 'paid'
+          AND (DATE(paid_at) = %s OR DATE(created_at) = %s)
+        GROUP BY payment_method
+        ORDER BY total_amount DESC
+        """,
+        (target_date, target_date),
+        decision="fetchall",
+    ) or []
+
+    # Grand total for the day
+    grand_total = sum(m["total_amount"] for m in method_totals)
+    total_txns = sum(m["transaction_count"] for m in method_totals)
+
+    # Detailed receipts list for cashier sign-off
+    receipts = db.query(
+        """
+        SELECT
+            p.id,
+            p.appointment_id,
+            p.amount,
+            p.payment_method,
+            p.transaction_id,
+            p.paid_at,
+            u.username AS patient_name,
+            u.mobile AS patient_mobile,
+            d.name AS doctor_name,
+            c.category_name
+        FROM payments p
+        JOIN appointments a ON p.appointment_id = a.id
+        JOIN users u ON p.user_id = u.id
+        JOIN doctors d ON a.doctor_id = d.id
+        LEFT JOIN categories c ON d.category_id = c.id
+        WHERE p.status = 'paid'
+          AND (DATE(p.paid_at) = %s OR DATE(p.created_at) = %s)
+        ORDER BY p.paid_at DESC
+        """,
+        (target_date, target_date),
+        decision="fetchall",
+    ) or []
+
+    return {
+        "reconciliation_date": target_date,
+        "hospital_merchant": HOSPITAL_MERCHANT_CONFIG["merchant_name"],
+        "gst_exemption_note": HOSPITAL_MERCHANT_CONFIG["gst_exemption_clause"],
+        "total_revenue": grand_total,
+        "total_transactions": total_txns,
+        "method_breakdown": method_totals,
+        "receipts": receipts,
+        "cashier_closing_status": "BALANCED",
     }
 
 

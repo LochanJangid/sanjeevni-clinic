@@ -126,7 +126,7 @@ export default function PhonePePaymentModal({
     setTimeout(() => setCopiedField(null), 2000);
   }
 
-  async function handleVerifyPayment(transactionCode?: string) {
+  async function handleVerifyPayment(transactionCode?: string, methodOverride: string = "phonepe") {
     if (!details) return;
     setVerifying(true);
     setError("");
@@ -135,7 +135,9 @@ export default function PhonePePaymentModal({
     const txnToSubmit =
       transactionCode ||
       utrNumber.trim() ||
-      `PP-UTR-${Math.floor(100000000000 + Math.random() * 900000000000)}`;
+      (methodOverride === "cash"
+        ? `CASH-REC-${Math.floor(100000 + Math.random() * 900000)}`
+        : `PP-UTR-${Math.floor(100000000000 + Math.random() * 900000000000)}`);
 
     try {
       const response = await fetch(`${API_URL}/billing/pay`, {
@@ -147,8 +149,8 @@ export default function PhonePePaymentModal({
         body: JSON.stringify({
           appointment_id: details.appointment_id,
           amount: details.amount,
-          payment_method: "phonepe",
-          phone_number: details.doctor_mobile,
+          payment_method: methodOverride,
+          phone_number: "HospitalBillingDesk",
           transaction_id: txnToSubmit,
         }),
       });
@@ -238,23 +240,23 @@ export default function PhonePePaymentModal({
                 </span>
                 <div>
                   <span className="text-[10px] tracking-widest uppercase font-bold text-purple-200 block">
-                    PhonePe Verified Medical Checkout
+                    Hospital Billing Desk &amp; Payment Gateway
                   </span>
                   <h2 className="text-xl font-bold tracking-tight">
-                    Scan &amp; Pay to Doctor via PhonePe
+                    Collect Consultation Fee &amp; Issue Receipt
                   </h2>
                 </div>
               </div>
 
               <p className="text-xs text-purple-100 max-w-lg mt-1">
-                Zero processing fees. Pay directly to the doctor&apos;s registered PhonePe number and receive an official clinic receipt instantly.
+                Official hospital collection desk. Collect via PhonePe Merchant Dynamic QR, Reception Cash Counter, or POS Card with instant Payment Receipt generation.
               </p>
             </div>
 
             {loading ? (
               <div className="p-12 text-center text-slate-500">
                 <div className="w-8 h-8 border-3 border-purple-600 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-                <p className="text-sm font-medium">Generating dynamic PhonePe payment QR…</p>
+                <p className="text-sm font-medium">Generating dynamic hospital payment gateway QR…</p>
               </div>
             ) : error && !details ? (
               <div className="p-8 text-center text-rose-600">
@@ -269,55 +271,31 @@ export default function PhonePePaymentModal({
               </div>
             ) : details ? (
               <div className="p-6 space-y-6">
-                {/* Doctor Recipient & Consultation Fee Card */}
-                <div className="bg-purple-50/70 border border-purple-200/80 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                {/* Hospital Recipient & Consultation Fee Card */}
+                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                   <div className="space-y-1">
-                    <div className="flex items-center gap-1.5 text-xs text-purple-900 font-bold uppercase tracking-wider">
-                      <ShieldCheck className="w-4 h-4 text-purple-700" />
-                      <span>Verified Doctor PhonePe Account</span>
+                    <div className="flex items-center gap-1.5 text-xs text-emerald-900 font-bold uppercase tracking-wider">
+                      <ShieldCheck className="w-4 h-4 text-emerald-700" />
+                      <span>Hospital Accounts &amp; Merchant Gateway</span>
                     </div>
                     <h3 className="text-lg font-bold text-slate-900">
-                      {details.doctor_name}
+                      Attending Consultant: {details.doctor_name}
                     </h3>
                     <p className="text-xs text-slate-600">
                       {details.specialty} · Appointment Ref #{details.appointment_id}
                     </p>
 
                     <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
-                      {/* Doctor Phone Number Pill */}
-                      <div className="inline-flex items-center gap-1.5 bg-white border border-purple-200 px-2.5 py-1 rounded-lg font-mono text-purple-950 font-semibold shadow-xs">
-                        <Smartphone className="w-3.5 h-3.5 text-purple-600" />
-                        <span>+91 {details.doctor_mobile}</span>
-                        <button
-                          type="button"
-                          onClick={() => copyToClipboard(details.doctor_mobile, "mobile")}
-                          className="text-purple-600 hover:text-purple-900 ml-1 transition"
-                          title="Copy phone number"
-                        >
-                          {copiedField === "mobile" ? (
-                            <Check className="w-3.5 h-3.5 text-emerald-600" />
-                          ) : (
-                            <Copy className="w-3.5 h-3.5" />
-                          )}
-                        </button>
+                      {/* Merchant VPA */}
+                      <div className="inline-flex items-center gap-1.5 bg-white border border-slate-200 px-2.5 py-1 rounded-lg font-mono text-slate-700 text-[11px] shadow-xs">
+                        <span className="text-slate-400">Merchant VPA:</span>
+                        <span className="font-semibold">{details.doctor_upi || "hospital.billing@ybl"}</span>
                       </div>
 
-                      {/* Doctor UPI VPA Pill */}
-                      <div className="inline-flex items-center gap-1.5 bg-white border border-purple-200 px-2.5 py-1 rounded-lg font-mono text-slate-700 text-[11px] shadow-xs">
-                        <span>{details.doctor_upi}</span>
-                        <button
-                          type="button"
-                          onClick={() => copyToClipboard(details.doctor_upi, "upi")}
-                          className="text-slate-500 hover:text-purple-900 transition"
-                          title="Copy UPI ID"
-                        >
-                          {copiedField === "upi" ? (
-                            <Check className="w-3.5 h-3.5 text-emerald-600" />
-                          ) : (
-                            <Copy className="w-3.5 h-3.5" />
-                          )}
-                        </button>
-                      </div>
+                      {/* GST Exemption status tag */}
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-900 text-[10px] font-bold">
+                        GST: 0% Exempt (Entry 74)
+                      </span>
                     </div>
                   </div>
 
@@ -439,23 +417,33 @@ export default function PhonePePaymentModal({
                           type="button"
                           disabled={verifying}
                           onClick={() => handleVerifyPayment()}
-                          className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-xl bg-emerald-700 text-white font-bold text-xs hover:bg-emerald-800 transition shadow-sm disabled:opacity-50"
+                          className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-xl bg-purple-700 text-white font-bold text-xs hover:bg-purple-800 transition shadow-sm disabled:opacity-50"
                         >
                           <Check className="w-4 h-4" />
                           <span>
-                            {verifying ? "Verifying PhonePe Payment…" : "I Have Paid · Issue Receipt"}
+                            {verifying ? "Verifying PhonePe PG…" : "Verify PhonePe · Issue Receipt"}
                           </span>
                         </button>
 
                         <button
                           type="button"
                           disabled={verifying}
+                          onClick={() => handleVerifyPayment(undefined, "cash")}
+                          className="inline-flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-emerald-600 text-white font-bold text-xs hover:bg-emerald-700 transition shadow-sm disabled:opacity-50"
+                          title="Record Cash Collection at Reception Desk"
+                        >
+                          <span>💵 Collect Cash at Desk</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          disabled={verifying}
                           onClick={handleQuickDemoPay}
-                          className="inline-flex items-center justify-center gap-1 py-2.5 px-3 rounded-xl bg-purple-100 text-purple-900 font-bold text-xs hover:bg-purple-200 transition shadow-xs disabled:opacity-50"
+                          className="inline-flex items-center justify-center gap-1 py-2.5 px-3 rounded-xl bg-slate-100 text-slate-800 font-bold text-xs hover:bg-slate-200 transition shadow-xs disabled:opacity-50"
                           title="Instant 1-click test simulation for evaluator/portfolio review"
                         >
-                          <Sparkles className="w-3.5 h-3.5 text-purple-700" />
-                          <span>Quick Demo Pay</span>
+                          <Sparkles className="w-3.5 h-3.5 text-slate-700" />
+                          <span>Quick Demo</span>
                         </button>
                       </div>
                     </div>

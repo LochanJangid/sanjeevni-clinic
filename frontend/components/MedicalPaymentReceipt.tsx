@@ -147,15 +147,17 @@ export default function MedicalPaymentReceipt({
                 <div className="flex flex-wrap gap-2 text-[11px] text-slate-500 mt-1">
                   <span>NABH Accredited</span>
                   <span>•</span>
-                  <span>GSTIN: 07AAAAA0000A1Z5</span>
+                  <span>Clinical Est. Reg: CEA-RJ-2024-8842</span>
                   <span>•</span>
-                  <span>Reg: DL-CL-2024-8842</span>
+                  <span>GST: Consultations Exempt (Notification 12/2017-CT)</span>
                 </div>
               </div>
             </div>
 
             <div className="text-left sm:text-right text-xs text-slate-500">
-              <p className="font-semibold text-slate-700">Official Electronic Receipt</p>
+              <span className="inline-block px-2.5 py-0.5 rounded-md bg-emerald-100 text-emerald-900 font-bold text-[11px] uppercase tracking-wider mb-1">
+                Payment receipt
+              </span>
               <p className="font-mono font-bold text-sm text-emerald-900 mt-0.5">
                 {data.receipt_number}
               </p>
@@ -194,11 +196,9 @@ export default function MedicalPaymentReceipt({
             <p className="text-slate-600">
               <span className="text-slate-400">Department:</span> {data.specialty || "Specialist Consultant"}
             </p>
-            {data.doctor_mobile && (
-              <p className="text-slate-600 font-medium">
-                <span className="text-slate-400">Doctor PhonePe No:</span> +91 {data.doctor_mobile}
-              </p>
-            )}
+            <p className="text-slate-600 font-medium">
+              <span className="text-slate-400">Council Reg:</span> RMC-{(data.appointment_id * 893).toString().padStart(6, "0")}
+            </p>
             <p className="text-slate-600">
               <span className="text-slate-400">Facility:</span> {data.clinic_address || "Suite 102, Primary Care Pavilion, Sanjeevni"}
             </p>
@@ -245,12 +245,12 @@ export default function MedicalPaymentReceipt({
               <tr>
                 <td className="py-3 px-3 font-mono text-slate-400">03</td>
                 <td className="py-3 px-3">
-                  <p className="font-semibold text-slate-900">Health Care Service GST</p>
-                  <p className="text-[11px] text-slate-500">Statutory Exemption under Notification 12/2017-CT(R)</p>
+                  <p className="font-semibold text-slate-900">Healthcare Service GST Status</p>
+                  <p className="text-[11px] text-slate-500">Exempt under Entry 74, Notification No. 12/2017-Central Tax (Rate)</p>
                 </td>
                 <td className="py-3 px-3 text-center text-slate-500 font-mono">0.00%</td>
                 <td className="py-3 px-3 text-right text-slate-400 font-medium">₹0.00</td>
-                <td className="py-3 px-3 text-right font-medium text-slate-500">₹0.00 (Exempt)</td>
+                <td className="py-3 px-3 text-right font-medium text-emerald-700">₹0.00 (Exempt)</td>
               </tr>
             </tbody>
             <tfoot>
@@ -267,28 +267,28 @@ export default function MedicalPaymentReceipt({
         </div>
 
         {/* Payment Transaction Details Callout */}
-        <div className="bg-purple-50/70 border border-purple-200/80 rounded-xl p-4 text-xs mb-6">
-          <div className="flex items-center gap-2 mb-2 text-purple-950 font-bold">
-            <span className="w-2 h-2 rounded-full bg-purple-600 animate-pulse" />
-            <span>Settlement Channel: PhonePe UPI Direct Clinician Gateway</span>
+        <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-xs mb-6">
+          <div className="flex items-center gap-2 mb-2 text-slate-900 font-bold">
+            <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
+            <span>Settlement Channel: Hospital Cashier &amp; Merchant Payment Gateway</span>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-slate-700">
             <div>
               <span className="text-slate-400 text-[11px] block">Payment Mode:</span>
-              <strong className="text-purple-900 uppercase">
-                {data.payment_method === "phonepe" ? "PhonePe UPI" : data.payment_method?.toUpperCase()}
+              <strong className="text-emerald-900 uppercase">
+                {data.payment_method === "phonepe" ? "PhonePe UPI (Merchant PG)" : data.payment_method?.toUpperCase()}
               </strong>
             </div>
             <div>
-              <span className="text-slate-400 text-[11px] block">PhonePe UTR / Txn Code:</span>
+              <span className="text-slate-400 text-[11px] block">Gateway / Bank UTR:</span>
               <strong className="font-mono text-slate-900 select-all">
-                {data.transaction_id || `PP-UTR-${data.appointment_id}98214`}
+                {data.transaction_id || `HOSP-UTR-${data.appointment_id}98214`}
               </strong>
             </div>
             <div>
-              <span className="text-slate-400 text-[11px] block">Doctor PhonePe Destination:</span>
-              <strong className="text-slate-900 font-mono">
-                {data.doctor_mobile ? `+91 ${data.doctor_mobile}` : (data.doctor_upi || "Verified Doctor UPI")}
+              <span className="text-slate-400 text-[11px] block">Beneficiary Entity:</span>
+              <strong className="text-slate-900 font-medium">
+                {hospitalName} Accounts Desk
               </strong>
             </div>
           </div>

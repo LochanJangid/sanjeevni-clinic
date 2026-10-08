@@ -32,7 +32,7 @@ import {
   Globe,
   ArrowLeft
 } from "lucide-react";
-import { getStoredHospitalName } from "../lib/hospital";
+import { getStoredHospitalBranding, HospitalBranding } from "../lib/hospital";
 
 export default function SiteHeader() {
   const pathname = usePathname();
@@ -42,15 +42,29 @@ export default function SiteHeader() {
   const [lang, setLang] = useState<Language>("en");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [featuresDropdownOpen, setFeaturesDropdownOpen] = useState(false);
-  const [hospitalName, setHospitalName] = useState("Sanjeevni Medical Pavilion");
+  const [branding, setBranding] = useState<HospitalBranding>({
+    name: "Sanjeevni Hospital",
+    city: "Jaipur",
+    logo: "✚",
+    logoType: "icon",
+    regNumber: "CEA-RJ-2024-8842",
+  });
+  const hospitalName = branding.name;
 
   useEffect(() => {
-    setHospitalName(getStoredHospitalName());
-    const handleHospital = (e: any) => {
-      if (e.detail) setHospitalName(e.detail);
+    setBranding(getStoredHospitalBranding());
+    const handleBranding = (e: any) => {
+      if (e.detail) setBranding(e.detail);
     };
-    window.addEventListener("hospital-name-change", handleHospital);
-    return () => window.removeEventListener("hospital-name-change", handleHospital);
+    const handleName = (e: any) => {
+      if (e.detail) setBranding((prev) => ({ ...prev, name: e.detail }));
+    };
+    window.addEventListener("hospital-branding-change", handleBranding);
+    window.addEventListener("hospital-name-change", handleName);
+    return () => {
+      window.removeEventListener("hospital-branding-change", handleBranding);
+      window.removeEventListener("hospital-name-change", handleName);
+    };
   }, []);
 
   useEffect(() => {
@@ -185,7 +199,13 @@ export default function SiteHeader() {
       <header className="site-header">
         <div className="site-header-inner">
           <Link className="brand" href="/dashboard" aria-label="Hospital home">
-            <span className="brand-mark" aria-hidden="true">+</span>
+            <span className="brand-mark" aria-hidden="true">
+              {branding.logoType === "image" ? (
+                <img src={branding.logo} alt="Logo" className="w-5 h-5 object-contain rounded" />
+              ) : (
+                branding.logo || "+"
+              )}
+            </span>
             <span>
               <span className="brand-name">{hospitalName}</span>
               <span className="brand-caption">CLINIC OS</span>

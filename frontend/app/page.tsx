@@ -421,7 +421,7 @@ export default function SellingSitePage() {
                     <span className="text-[10px] block text-emerald-400 font-semibold mt-0.5">PAID &amp; VERIFIED ✓</span>
                   </div>
                   <div className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-[11px] text-slate-400">
-                    Settlement: Direct to Doctor PhonePe UPI
+                    Settlement: Hospital Cashier &amp; Merchant Gateway Desk
                   </div>
                 </div>
               </div>
@@ -430,27 +430,27 @@ export default function SellingSitePage() {
             <div className="space-y-4 order-1 lg:order-2">
               <div className="inline-flex items-center gap-2 text-xs font-bold text-purple-400 uppercase tracking-wider">
                 <QrCode className="w-4 h-4" />
-                <span>Feature 02 · Zero-Fee Financial Settlement</span>
+                <span>Feature 02 · Daily Reconciled Billing</span>
               </div>
               <h3 className="text-2xl sm:text-3xl font-black text-white">
-                PhonePe Direct Clinician Payment &amp; Electronic Receipts
+                PhonePe Merchant Dynamic QR, Cash Counter &amp; Payment Receipts
               </h3>
               <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-                Patients scan a dynamic QR code on their mobile device or launch PhonePe directly with one tap. Payments route 100% directly to the doctor&apos;s verified mobile number or clinic account with zero intermediary commissions, issuing an authentic GST-compliant printable medical receipt instantly.
+                Eliminate evening cash discrepancies and revenue leakage. Reception staff collect consultation and procedure fees via PhonePe Merchant Dynamic QR, counter cash, or POS card with daily cash drawer closing. Generates official Payment Receipts with statutory consultation GST exemption under Entry 74, Notification 12/2017-CT(R).
               </p>
 
               <div className="space-y-2 pt-2 text-xs text-slate-300">
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                  <span>Doctor verified phone number &amp; UPI VPA mapping</span>
+                  <span>Hospital merchant gateway &amp; cashier desk payment modes</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                  <span>1-Tap deep link opening PhonePe mobile app directly</span>
+                  <span>PhonePe Merchant Dynamic QR + Reception Cash Drawer Settlement</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                  <span>Official printable receipt with authenticated division seal</span>
+                  <span>Official Payment Receipt with Consultation GST Exemption</span>
                 </div>
               </div>
             </div>
@@ -610,16 +610,16 @@ export default function SellingSitePage() {
               What Lochan Jangid Delivers to Hospital Owners
             </h2>
             <p className="text-sm text-slate-400">
-              Choose between complete turnkey cloud SaaS deployment, custom white-label branding, or full source code buyout for your medical network.
+              Choose between complete turnkey cloud SaaS deployment, custom white-label branding, or private on-premise hospital intranet setup with automated daily data backups.
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <div className="p-6 rounded-3xl bg-slate-900 border border-slate-800 space-y-3">
-              <span className="text-2xl">📦</span>
-              <h4 className="text-base font-bold text-white">Full Source Code</h4>
+              <span className="text-2xl">🛡️</span>
+              <h4 className="text-base font-bold text-white">Annual License &amp; Escrow</h4>
               <p className="text-xs text-slate-400 leading-relaxed">
-                Production-grade Next.js 16 frontend + FastAPI Python backend + Neon PostgreSQL schema and tests.
+                Predictable annual pricing with 1-click full database exports (CSV/SQL) and software escrow clause for total hospital autonomy.
               </p>
             </div>
 
@@ -662,13 +662,13 @@ export default function SellingSitePage() {
               <div className="space-y-3 text-center md:text-left">
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-300 text-xs font-bold uppercase tracking-wider">
                   <Code2 className="w-3.5 h-3.5" />
-                  <span>Lead Healthcare Software Architect</span>
+                  <span>Healthcare Software Engineer</span>
                 </div>
                 <h3 className="text-2xl sm:text-3xl font-black text-white">
                   Meet the Developer · Lochan Jangid
                 </h3>
                 <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-                  I architect mission-critical healthcare software designed specifically to eliminate administrative drag for doctors and hospital owners. This platform solves the exact operational pain points of modern polyclinics: double-booking prevention, 0% fee PhonePe direct doctor settlement, live OPD TV queues, and transparent inpatient bed tracking.
+                  I engineer practical, fast software designed specifically for 10-50 bed hospitals and polyclinics in tier-2 cities. This system eliminates waiting-room friction with audio OPD TV calls, reconciles every rupee with daily cash drawer closing, and runs IPD bed census without heavy IT overhead.
                 </p>
 
                 <div className="pt-3 flex flex-wrap items-center justify-center md:justify-start gap-4">
