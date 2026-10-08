@@ -1,7 +1,11 @@
 export interface TokenClaims {
   sub?: string;
   username?: string;
+  role?: "patient" | "doctor" | "admin" | string;
+  doctor_id?: number;
 }
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
 export function parseTokenClaims(token: string): TokenClaims | null {
   try {
@@ -18,8 +22,49 @@ export function parseTokenClaims(token: string): TokenClaims | null {
     return {
       sub: typeof claims.sub === "string" ? claims.sub : undefined,
       username: typeof claims.username === "string" ? claims.username : undefined,
+      role: typeof claims.role === "string" ? claims.role : "patient",
+      doctor_id: typeof claims.doctor_id === "number" ? claims.doctor_id : undefined,
     };
   } catch {
     return null;
+  }
+}
+
+export function getAuthToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem("access_token");
+}
+
+export function getAuthClaims(): TokenClaims | null {
+  const token = getAuthToken();
+  return token ? parseTokenClaims(token) : null;
+}
+
+export function setAuthSession(token: string) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem("access_token", token);
+  window.dispatchEvent(new Event("sanjeevni-session-change"));
+}
+
+export function clearAuthSession() {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem("access_token");
+  window.dispatchEvent(new Event("sanjeevni-session-change"));
+}
+
+export async function loginAsDemoRole(role: "patient" | "doctor" | "admin"): Promise<boolean> {
+  try {
+    const response = await fetch(`${API_URL}/users/demo_login/${role}`, {
+      method: "POST",
+    });
+    if (!response.ok) return false;
+    const data = await response.json();
+    if (data.access_token) {
+      setAuthSession(data.access_token);
+      return true;
+    }
+    return false;
+  } catch {
+    return false;
   }
 }

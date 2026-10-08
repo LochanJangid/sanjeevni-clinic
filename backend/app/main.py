@@ -10,25 +10,18 @@ from routers import assistant
 from routers import prescriptions
 from routers import billing
 from routers import admin
+from routers import clinical
 from database.connection import Database
 
 app = FastAPI(title="Sanjeevni Clinic SaaS API", version="2.0.0")
 
-# make middleware and add frontend server so only it is allow to talk to me
-frontend_origins = [
-    origin.strip()
-    for origin in os.getenv(
-        "FRONTEND_ORIGINS",
-        "http://localhost:3000,http://127.0.0.1:3000",
-    ).split(",")
-    if origin.strip()
-]
+# CORS configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=frontend_origins,
+    allow_origin_regex=r"https?://.*",
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"]
+    allow_headers=["*"],
 )
 
 ## ROUTERS ------------------
@@ -39,6 +32,7 @@ app.include_router(assistant.router)
 app.include_router(prescriptions.router)
 app.include_router(billing.router)
 app.include_router(admin.router)
+app.include_router(clinical.router)
 
 ## ROOT ----------------------
 @app.get("/")

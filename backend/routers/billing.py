@@ -13,11 +13,22 @@ router = APIRouter(prefix="/billing", tags=["billing"])
 db = Database()
 
 
+DOCTOR_PHONE_MAP = {
+    1: {"mobile": "9876543211", "upi": "9876543211@ybl", "name": "Dr. Rajesh Sharma"},
+    2: {"mobile": "9876543212", "upi": "9876543212@ybl", "name": "Dr. Priya Verma"},
+    3: {"mobile": "9876543210", "upi": "9876543210@ybl", "name": "Dr. Amit Gupta"},
+    4: {"mobile": "9876543214", "upi": "9876543214@ybl", "name": "Dr. Anita Roy"},
+    5: {"mobile": "9876543215", "upi": "9876543215@ybl", "name": "Dr. Vikram Sethi"},
+    6: {"mobile": "9876543216", "upi": "9876543216@ybl", "name": "Dr. Meera Iyer"},
+}
+
+
 class ProcessPaymentRequest(BaseModel):
     appointment_id: int
     amount: int = Field(gt=0)
-    payment_method: str = Field(default="upi")  # upi, card, cash, online
+    payment_method: str = Field(default="phonepe")  # upi, card, cash, online, phonepe
     phone_number: Optional[str] = None
+    transaction_id: Optional[str] = None
 
 
 ## GET USER'S INVOICES AND BILLS ----------
@@ -134,7 +145,15 @@ def process_payment(
     if claims.get("role") == "patient" and claims.get("id") != appt["user_id"]:
         raise HTTPException(status_code=403, detail="Access denied.")
 
-    txn_id = f"PAY-{uuid.uuid4().hex[:10].upper()}"
+    if payload.transaction_id and payload.transaction_id.strip():
+        txn_id = payload.transaction_id.strip()
+    elif method == "phonepe":
+        txn_id = f"PHONEPE-TXN-{uuid.uuid4().hex[:10].upper()}"
+    else:
+        txn_id = f"PAY-{uuid.uuid4().hex[:10].upper()}"
+
+    doc_meta = DOCTOR_PHONE_MAP.get(appt["doctor_id"], {})
+    phone_to_record = payload.phone_number or doc_meta.get("mobile")
 
     with db.get_connection() as conn:
         with conn.cursor() as cur:
@@ -146,28 +165,36 @@ def process_payment(
                     """
                     UPDATE payments
                     SET amount = %s, payment_method = %s, status = 'paid',
-                        transaction_id = COALESCE(transaction_id, %s),
+                        transaction_id = %s,
                         phone_number = %s, paid_at = NOW()
                     WHERE appointment_id = %s
                     RETURNING id, transaction_id, status, paid_at
                     """,
-                    (payload.amount, method, txn_id, payload.phone_number, payload.appointment_id),
+                    (payload.amount, method, txn_id, phone_to_record, payload.appointment_id),
                 )
                 updated = cur.fetchone()
                 pid = updated[0]
                 txn_code = updated[1]
+                paid_time = updated[3]
             else:
                 cur.execute(
                     """
                     INSERT INTO payments (appointment_id, user_id, amount, payment_method, status, transaction_id, phone_number, created_at, paid_at)
                     VALUES (%s, %s, %s, %s, 'paid', %s, %s, NOW(), NOW())
-                    RETURNING id, transaction_id
+                    RETURNING id, transaction_id, status, paid_at
                     """,
-                    (payload.appointment_id, appt["user_id"], payload.amount, method, txn_id, payload.phone_number),
+                    (payload.appointment_id, appt["user_id"], payload.amount, method, txn_id, phone_to_record),
                 )
                 row = cur.fetchone()
                 pid = row[0]
                 txn_code = row[1]
+                paid_time = row[3]
+
+            # Also update appointment status to confirmed
+            cur.execute(
+                "UPDATE appointments SET status = 'confirmed' WHERE id = %s AND (status = 'scheduled' OR status IS NULL OR status = 'pending')",
+                (payload.appointment_id,),
+            )
             conn.commit()
 
     return {
@@ -175,7 +202,79 @@ def process_payment(
         "payment_id": pid,
         "transaction_id": txn_code,
         "status": "paid",
-        "msg": "Payment processed successfully.",
+        "paid_at": paid_time.isoformat() if hasattr(paid_time, "isoformat") else str(paid_time),
+        "receipt_number": f"SJ-REC-{payload.appointment_id:05d}",
+        "msg": "Payment processed successfully via PhonePe UPI.",
+    }
+
+
+## PHONEPE QR AND DETAILS ENDPOINT ----------
+@router.get("/phonepe-details/{appointment_id}")
+def get_phonepe_details(
+    appointment_id: int,
+    authorization: str | None = Header(default=None, alias="Authorization"),
+):
+    authenticated_token_claims(authorization)
+    appt = db.query(
+        """
+        SELECT a.id, a.user_id, a.doctor_id, a.appointment_date, a.appointment_time, a.status,
+               d.name as doctor_name, d.fees, c.category_name, dp.clinic_address,
+               u.username as patient_name, u.mobile as patient_mobile,
+               p.status as payment_status, p.transaction_id, p.paid_at, p.payment_method
+        FROM appointments a
+        JOIN doctors d ON d.id = a.doctor_id
+        LEFT JOIN categories c ON c.id = d.category_id
+        LEFT JOIN doctor_profiles dp ON dp.doctor_id = d.id
+        JOIN users u ON u.id = a.user_id
+        LEFT JOIN payments p ON p.appointment_id = a.id
+        WHERE a.id = %s
+        """,
+        (appointment_id,),
+        decision="fetchone",
+    )
+    if not appt:
+        raise HTTPException(status_code=404, detail="Appointment not found.")
+
+    doc_meta = DOCTOR_PHONE_MAP.get(appt["doctor_id"], {
+        "mobile": "9876543210",
+        "upi": "sanjeevni.clinic@ybl",
+        "name": appt["doctor_name"]
+    })
+
+    doctor_mobile = doc_meta["mobile"]
+    doctor_upi = doc_meta["upi"]
+    amount = appt["fees"]
+    doc_title = appt["doctor_name"] if appt["doctor_name"].startswith("Dr.") else f"Dr. {appt['doctor_name']}"
+    note = f"Consultation {doc_title} Ref SJ-{appointment_id}"
+
+    import urllib.parse
+    encoded_pn = urllib.parse.quote(appt["doctor_name"])
+    encoded_tn = urllib.parse.quote(note)
+
+    upi_intent_uri = f"upi://pay?pa={doctor_upi}&pn={encoded_pn}&am={amount}&cu=INR&tn={encoded_tn}"
+    phonepe_intent_uri = f"phonepe://pay?pa={doctor_upi}&pn={encoded_pn}&am={amount}&cu=INR&tn={encoded_tn}"
+
+    receipt_number = f"SJ-REC-{appointment_id:05d}"
+
+    return {
+        "appointment_id": appointment_id,
+        "doctor_id": appt["doctor_id"],
+        "doctor_name": appt["doctor_name"],
+        "specialty": appt.get("category_name") or "Specialist",
+        "doctor_mobile": doctor_mobile,
+        "doctor_upi": doctor_upi,
+        "amount": amount,
+        "patient_name": appt["patient_name"],
+        "appointment_date": str(appt["appointment_date"]),
+        "appointment_time": str(appt["appointment_time"]),
+        "clinic_address": appt.get("clinic_address") or "Sanjeevni Medical Pavilion, Metro Sector 18, New Delhi",
+        "upi_intent_uri": upi_intent_uri,
+        "phonepe_intent_uri": phonepe_intent_uri,
+        "payment_status": appt.get("payment_status") or "pending",
+        "payment_method": appt.get("payment_method") or "phonepe",
+        "transaction_id": appt.get("transaction_id"),
+        "paid_at": appt.get("paid_at"),
+        "receipt_number": receipt_number
     }
 
 

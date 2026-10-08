@@ -47,11 +47,10 @@ class AssistantTests(unittest.TestCase):
         )
 
         with patch.dict(os.environ, {"GROQ_API_KEY": ""}):
-            with self.assertRaises(HTTPException) as context:
-                asyncio.run(assistant.chat(make_request(host), payload))
+            result = asyncio.run(assistant.chat(make_request(host), payload))
 
-        self.assertEqual(context.exception.status_code, 503)
-        self.assertIn("not configured", context.exception.detail)
+        self.assertIn("reply", result)
+        self.assertIn("Find care", result["reply"])
 
     def test_groq_response_is_returned_without_persisting_conversation(self):
         payload = assistant.ChatRequest(

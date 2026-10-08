@@ -139,7 +139,7 @@ export default function BookAppointmentForm() {
       setMessage("Your appointment request was recorded. Opening the details…");
       const appointmentId = data.appointment?.id;
       if (appointmentId) {
-        window.setTimeout(() => router.push(`/appointments/${appointmentId}`), 700);
+        window.setTimeout(() => router.push(`/appointments/${appointmentId}?pay=phonepe`), 700);
       }
     } catch (error) {
       setBookingError(

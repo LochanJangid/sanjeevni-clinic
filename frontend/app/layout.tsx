@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import "./globals.css";
 import SiteHeader from "./SiteHeader";
 import AssistantWidget from "./AssistantWidget";
+import HospitalFooter from "../components/HospitalFooter";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -13,10 +14,10 @@ const geistSans = Geist({
 
 export const metadata: Metadata = {
   title: {
-    default: "Sanjeevni Clinic | Care made clear",
-    template: "%s | Sanjeevni Clinic",
+    default: "Sanjeevni Hospital OS | Enterprise Healthcare Solution",
+    template: "%s | Hospital OS",
   },
-  description: "Find a doctor, book a visit, and keep your appointments organized with Sanjeevni Clinic.",
+  description: "Enterprise hospital operating system for patient care, doctor consultation, bed census, OPD TV queue, and PhonePe billing.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -31,23 +32,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         </Suspense>
         {children}
         <AssistantWidget />
-        <footer className="site-footer">
-          <div className="site-footer-inner">
-            <Link className="footer-brand" href="/">
-              <span className="brand-mark" aria-hidden="true">+</span>
-              <span>Sanjeevni Clinic</span>
-            </Link>
-            <p>Simple, considered care—starting with your next visit.</p>
-            <div className="footer-links">
-              <Link href="/doctors">Find a doctor</Link>
-              <Link href="/appointments">Appointments</Link>
-              <Link href="/profile">Patient profile</Link>
-            </div>
-            <p className="footer-note">
-              For urgent medical concerns, contact local emergency services or visit an emergency department.
-            </p>
-          </div>
-        </footer>
+        <HospitalFooter />
       </body>
     </html>
   );

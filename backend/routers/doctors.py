@@ -68,16 +68,19 @@ def get_doctors(
         FROM doctors d
         LEFT JOIN categories c ON d.category_id = c.id
         LEFT JOIN doctor_profiles dp ON d.id = dp.doctor_id
-        WHERE (%s IS NULL OR d.category_id = %s)
-          AND (%s IS NULL OR d.name ILIKE %s OR c.category_name ILIKE %s OR dp.qualification ILIKE %s)
-        ORDER BY d.id ASC
+        WHERE 1=1
     """
-    search_param = f"%{search.strip()}%" if search and search.strip() else None
-    doctors_list = db.query(
-        sql,
-        (category_id, category_id, search_param, search_param, search_param, search_param),
-        decision="fetchall",
-    )
+    params = []
+    if category_id is not None:
+        sql += " AND d.category_id = %s"
+        params.append(category_id)
+    if search and search.strip():
+        sql += " AND (d.name ILIKE %s OR c.category_name ILIKE %s OR dp.qualification ILIKE %s)"
+        pattern = f"%{search.strip()}%"
+        params.extend([pattern, pattern, pattern])
+
+    sql += " ORDER BY d.id ASC"
+    doctors_list = db.query(sql, tuple(params), decision="fetchall")
     return doctors_list
 
 

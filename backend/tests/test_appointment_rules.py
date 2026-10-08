@@ -138,6 +138,8 @@ class AppointmentRuleTests(unittest.TestCase):
             "query",
             side_effect=[
                 {"id": 5},
+                [],
+                None,
                 [{"appointment_time": time(9, 15)}],
             ],
         ):

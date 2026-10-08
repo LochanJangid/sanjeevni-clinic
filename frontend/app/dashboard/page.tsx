@@ -20,6 +20,7 @@ export default function DashboardPage() {
   const [username, setUsername] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     async function loadOverview() {
@@ -52,12 +53,17 @@ export default function DashboardPage() {
     }
 
     loadOverview();
+    setMounted(true);
   }, []);
 
-  const upcoming = appointments.find((appointment) => {
-    return appointment.status !== "cancelled"
-      && new Date(`${appointment.appointment_date}T${appointment.appointment_time}`) >= new Date();
-  });
+  const upcoming = mounted
+    ? appointments.find((appointment) => {
+        return (
+          appointment.status !== "cancelled" &&
+          new Date(`${appointment.appointment_date}T${appointment.appointment_time}`).getTime() >= Date.now()
+        );
+      })
+    : null;
 
   return (
     <main className="page-shell">
@@ -112,22 +118,63 @@ export default function DashboardPage() {
         </section>
 
         <section className="card quick-actions-card">
-          <p className="eyebrow">QUICK ACCESS</p>
-          <h2 className="section-heading">What would you like to do?</h2>
-          <div className="quick-action-list">
-            <Link href="/doctors" className="quick-action">
-              <span className="action-icon">⌕</span>
-              <span><strong>Find a doctor</strong><small>Browse the clinic team</small></span>
+          <p className="eyebrow">PATIENT HEALTHCARE SUITE</p>
+          <h2 className="section-heading">Clinical Portals &amp; Health Records</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-4 text-xs">
+            <Link href="/symptom-checker" className="quick-action p-3 rounded-xl border border-border hover:bg-slate-50 transition-colors flex items-center justify-between">
+              <span className="flex items-center gap-2.5">
+                <span className="p-2 bg-teal-100 text-teal-800 rounded-lg text-sm">⚡</span>
+                <span><strong>AI Symptom Triage</strong><small className="block text-muted">Screen symptoms &amp; find doctor</small></span>
+              </span>
               <span className="action-arrow">→</span>
             </Link>
-            <Link href="/appointments" className="quick-action">
-              <span className="action-icon">▤</span>
-              <span><strong>My appointments</strong><small>Review or manage visits</small></span>
+            <Link href="/lab-reports" className="quick-action p-3 rounded-xl border border-border hover:bg-slate-50 transition-colors flex items-center justify-between">
+              <span className="flex items-center gap-2.5">
+                <span className="p-2 bg-indigo-100 text-indigo-800 rounded-lg text-sm">🔬</span>
+                <span><strong>Diagnostic Lab Reports</strong><small className="block text-muted">Pathology, CBC &amp; test slips</small></span>
+              </span>
               <span className="action-arrow">→</span>
             </Link>
-            <Link href="/profile" className="quick-action">
-              <span className="action-icon">○</span>
-              <span><strong>Patient profile</strong><small>Keep contact details current</small></span>
+            <Link href="/vitals" className="quick-action p-3 rounded-xl border border-border hover:bg-slate-50 transition-colors flex items-center justify-between">
+              <span className="flex items-center gap-2.5">
+                <span className="p-2 bg-rose-100 text-rose-800 rounded-lg text-sm">📈</span>
+                <span><strong>Vitals &amp; Biomarkers</strong><small className="block text-muted">BP, sugar, pulse &amp; weight logs</small></span>
+              </span>
+              <span className="action-arrow">→</span>
+            </Link>
+            <Link href="/pharmacy" className="quick-action p-3 rounded-xl border border-border hover:bg-slate-50 transition-colors flex items-center justify-between">
+              <span className="flex items-center gap-2.5">
+                <span className="p-2 bg-emerald-100 text-emerald-800 rounded-lg text-sm">💊</span>
+                <span><strong>Clinic Dispensary</strong><small className="block text-muted">Prescribed medicines &amp; stocks</small></span>
+              </span>
+              <span className="action-arrow">→</span>
+            </Link>
+            <Link href="/teleconsult" className="quick-action p-3 rounded-xl border border-border hover:bg-slate-50 transition-colors flex items-center justify-between">
+              <span className="flex items-center gap-2.5">
+                <span className="p-2 bg-blue-100 text-blue-800 rounded-lg text-sm">📹</span>
+                <span><strong>Teleconsult Room</strong><small className="block text-muted">Virtual video doctor visit</small></span>
+              </span>
+              <span className="action-arrow">→</span>
+            </Link>
+            <Link href="/vaccinations" className="quick-action p-3 rounded-xl border border-border hover:bg-slate-50 transition-colors flex items-center justify-between">
+              <span className="flex items-center gap-2.5">
+                <span className="p-2 bg-amber-100 text-amber-800 rounded-lg text-sm">💉</span>
+                <span><strong>Vaccine Passport</strong><small className="block text-muted">Immunization certificates</small></span>
+              </span>
+              <span className="action-arrow">→</span>
+            </Link>
+            <Link href="/prescriptions" className="quick-action p-3 rounded-xl border border-border hover:bg-slate-50 transition-colors flex items-center justify-between">
+              <span className="flex items-center gap-2.5">
+                <span className="p-2 bg-teal-100 text-teal-800 rounded-lg text-sm">℞</span>
+                <span><strong>Digital Prescriptions</strong><small className="block text-muted">Official dosage schedules</small></span>
+              </span>
+              <span className="action-arrow">→</span>
+            </Link>
+            <Link href="/billing" className="quick-action p-3 rounded-xl border border-border hover:bg-slate-50 transition-colors flex items-center justify-between">
+              <span className="flex items-center gap-2.5">
+                <span className="p-2 bg-slate-100 text-slate-800 rounded-lg text-sm">₹</span>
+                <span><strong>Invoices &amp; Billing</strong><small className="block text-muted">UPI &amp; card payment receipts</small></span>
+              </span>
               <span className="action-arrow">→</span>
             </Link>
           </div>

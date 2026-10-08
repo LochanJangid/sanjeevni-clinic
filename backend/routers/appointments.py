@@ -128,7 +128,7 @@ def book_appointment(
             doc_row = cursor.fetchone()
             if doc_row is None:
                 raise HTTPException(status_code=404, detail="Doctor not found.")
-            doc_fees = doc_row[1]
+            doc_fees = doc_row[1] if len(doc_row) > 1 else 500
 
             if find_conflict(
                 cursor,

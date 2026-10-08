@@ -12,6 +12,9 @@ interface Appointment {
   doctor_id: number;
   doctor_name: string;
   fees: number;
+  category_name?: string;
+  payment_status?: string;
+  has_prescription?: boolean;
 }
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
@@ -185,12 +188,19 @@ export default function AppointmentsPage() {
     return () => controller.abort();
   }, [reload]);
 
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const visibleAppointments = appointments.filter((appointment) => {
     const appointmentTime = new Date(`${appointment.appointment_date}T${appointment.appointment_time}`);
     const isCancelled = appointment.status?.toLowerCase() === "cancelled";
+    const isUpcomingTime = mounted ? appointmentTime.getTime() >= Date.now() : true;
     return activeTab === "upcoming"
-      ? !isCancelled && appointmentTime >= new Date()
-      : isCancelled || appointmentTime < new Date();
+      ? !isCancelled && isUpcomingTime
+      : isCancelled || !isUpcomingTime;
   });
 
   async function cancelAppointment(appointment: Appointment) {
@@ -266,18 +276,33 @@ export default function AppointmentsPage() {
                         <span>{new Date(appointment.appointment_date).toLocaleDateString(undefined, { month: "short" })}</span>
                       </div>
                       <div className="appointment-main-copy">
-                        <p className="eyebrow">DOCTOR VISIT</p>
+                        <p className="eyebrow">{appointment.category_name || "SPECIALIST CONSULTATION"}</p>
                         <h2>{appointment.doctor_name}</h2>
                         <p>{new Date(`${appointment.appointment_date}T12:00:00`).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" })} · {appointment.appointment_time.slice(0, 5)}</p>
                       </div>
                       <div className="appointment-card-fee">
                         <span>Consultation fee</span>
                         <strong>₹{appointment.fees}</strong>
-                        <span className={isCancelled ? "status-pill cancelled" : "status-pill"}>{appointment.status || "Booked"}</span>
+                        <div className="flex gap-1 justify-end mt-1">
+                          <span className={isCancelled ? "status-pill cancelled" : "status-pill"}>{appointment.status || "Booked"}</span>
+                          <span className={`status-pill ${appointment.payment_status === "paid" ? "status-completed" : "status-pending"}`}>
+                            {appointment.payment_status === "paid" ? "Paid" : "Unpaid"}
+                          </span>
+                        </div>
                       </div>
                     </div>
                     <div className="appointment-card-actions">
                       <Link href={`/appointments/${appointment.id}`} className="appointment-text-action">View details <span aria-hidden="true">→</span></Link>
+                      {appointment.has_prescription && (
+                        <Link href={`/prescriptions/${appointment.id}`} className="appointment-text-action text-emerald-800 font-semibold">
+                          View Digital Rx ℞
+                        </Link>
+                      )}
+                      {appointment.payment_status !== "paid" && !isCancelled && (
+                        <Link href="/billing" className="appointment-text-action text-amber-800 font-semibold">
+                          Pay ₹{appointment.fees} ↗
+                        </Link>
+                      )}
                       {canManage && (
                         <>
                           <button type="button" className="appointment-text-action" onClick={() => {
