@@ -1,6 +1,7 @@
 import json
+import uuid
 from datetime import date, datetime, timezone, timedelta
-from typing import Literal
+from typing import Literal, Optional
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 from pydantic import BaseModel, Field
 
@@ -11,7 +12,74 @@ router = APIRouter(prefix="/clinical", tags=["Clinical"])
 db = Database()
 
 
+def create_role_notification(
+    recipient_role: str,
+    title: str,
+    message: str,
+    category: str = "general",
+    recipient_id: Optional[int] = None,
+    link: Optional[str] = None
+):
+    try:
+        db.query(
+            """
+            INSERT INTO role_notifications (recipient_role, recipient_id, title, message, category, link, is_read, created_at)
+            VALUES (%s, %s, %s, %s, %s, %s, FALSE, NOW())
+            """,
+            (recipient_role, recipient_id, title, message, category, link)
+        )
+    except Exception as e:
+        print(f"Failed to create notification: {e}")
+
+
 # --- PYDANTIC SCHEMAS ---
+
+class TeleconsultCallRequest(BaseModel):
+    appointment_id: int
+    doctor_id: int
+    patient_id: Optional[int] = None
+    caller_role: str  # 'patient' or 'doctor'
+    caller_name: str
+
+class TeleconsultCallResponseRequest(BaseModel):
+    call_id: int
+    action: str  # 'accept' or 'decline'
+
+class OpdCheckInRequest(BaseModel):
+    doctor_id: int
+    patient_name: str
+    appointment_id: Optional[int] = None
+
+class DoctorPharmacyOrderRequest(BaseModel):
+    patient_id: int
+    appointment_id: Optional[int] = None
+    items: list[dict]  # [{"medicine_id": 1, "quantity": 2}]
+    delivery_address: Optional[str] = "Hospital Clinic Pharmacy Desk"
+    instructions: Optional[str] = ""
+
+class MedicineCreateRequest(BaseModel):
+    name: str
+    generic_name: str
+    category: str
+    dosage_form: str
+    strength: str
+    price: float
+    stock_quantity: int
+    batch_number: str
+    expiry_date: str
+    prescription_required: bool = True
+
+class MedicineUpdateRequest(BaseModel):
+    name: Optional[str] = None
+    generic_name: Optional[str] = None
+    category: Optional[str] = None
+    dosage_form: Optional[str] = None
+    strength: Optional[str] = None
+    price: Optional[float] = None
+    stock_quantity: Optional[int] = None
+    batch_number: Optional[str] = None
+    expiry_date: Optional[str] = None
+    prescription_required: Optional[bool] = None
 
 class VitalsCreate(BaseModel):
     user_id: int | None = None
@@ -59,6 +127,8 @@ class SymptomTriageRequest(BaseModel):
 class BedAdmitRequest(BaseModel):
     patient_name: str = Field(min_length=2, max_length=100)
     doctor_id: int | None = None
+    patient_id: int | None = None
+    requisition_notes: str | None = None
 
 
 class PharmacyOrderRequest(BaseModel):
@@ -139,20 +209,56 @@ def get_patient_vitals_by_id(patient_id: int, authorization: str | None = Header
 def get_my_lab_reports(authorization: str | None = Header(None)):
     claims = authenticated_token_claims(authorization)
     user_id = claims["id"]
-    reports = db.query(
-        """
-        SELECT lr.id, lr.test_name, lr.category, lr.result_summary, lr.status,
-               lr.is_abnormal, lr.report_data, lr.clinical_notes, lr.conducted_at,
-               d.name as doctor_name
-        FROM lab_reports lr
-        LEFT JOIN doctors d ON d.id = lr.doctor_id
-        WHERE lr.user_id = %s
-        ORDER BY lr.conducted_at DESC
-        """,
-        (user_id,),
-        decision="fetchall"
-    )
+    role = claims.get("role", "patient")
+
+    if role in ("admin", "doctor"):
+        reports = db.query(
+            """
+            SELECT lr.id, lr.test_name, lr.category, lr.result_summary, lr.status,
+                   lr.is_abnormal, lr.report_data, lr.clinical_notes, lr.conducted_at,
+                   d.name as doctor_name, u.username as patient_name
+            FROM lab_reports lr
+            LEFT JOIN doctors d ON d.id = lr.doctor_id
+            LEFT JOIN users u ON u.id = lr.user_id
+            ORDER BY lr.conducted_at DESC
+            """,
+            decision="fetchall"
+        )
+    else:
+        reports = db.query(
+            """
+            SELECT lr.id, lr.test_name, lr.category, lr.result_summary, lr.status,
+                   lr.is_abnormal, lr.report_data, lr.clinical_notes, lr.conducted_at,
+                   d.name as doctor_name, u.username as patient_name
+            FROM lab_reports lr
+            LEFT JOIN doctors d ON d.id = lr.doctor_id
+            LEFT JOIN users u ON u.id = lr.user_id
+            WHERE lr.user_id = %s
+            ORDER BY lr.conducted_at DESC
+            """,
+            (user_id,),
+            decision="fetchall"
+        )
     return {"reports": reports}
+
+
+@router.get("/patients-list")
+def get_registered_patients(authorization: str | None = Header(None)):
+    claims = authenticated_token_claims(authorization)
+    if claims.get("role") not in ("doctor", "admin"):
+        raise HTTPException(status_code=403, detail="Staff access required.")
+
+    patients = db.query(
+        """
+        SELECT id, username, email, mobile
+        FROM users
+        WHERE role = 'patient' OR role IS NULL
+        ORDER BY username ASC
+        LIMIT 100
+        """,
+        decision="fetchall"
+    ) or []
+    return {"patients": patients}
 
 
 @router.get("/lab-reports/{report_id}")
@@ -196,6 +302,22 @@ def create_lab_report(payload: LabReportCreate, authorization: str | None = Head
             json.dumps(payload.report_data), payload.clinical_notes
         )
     )
+    create_role_notification(
+        "patient",
+        "Lab Diagnostic Report Issued",
+        f"Your clinical lab test result for {payload.test_name} has been processed and is ready.",
+        category="lab",
+        link="/lab-reports",
+        recipient_id=payload.user_id
+    )
+    create_role_notification(
+        "admin",
+        "New Lab Report Issued",
+        f"Lab report for {payload.test_name} generated for patient #{payload.user_id}.",
+        category="lab",
+        link="/admin"
+    )
+
     return {"msg": "Lab report successfully logged", "report": new_report}
 
 
@@ -264,6 +386,41 @@ def admit_patient_to_bed(bed_id: int, payload: BedAdmitRequest, authorization: s
         """,
         (payload.patient_name, doc_id, bed_id)
     )
+
+    # Resolve patient user_id if available
+    patient_user_id = payload.patient_id
+    if not patient_user_id:
+        p_row = db.query("SELECT id FROM users WHERE LOWER(username) = LOWER(%s)", (payload.patient_name,), decision="fetchone")
+        if p_row:
+            patient_user_id = p_row["id"]
+
+    staff_title = f"Dr. {claims.get('username', 'Physician')}" if claims.get("role") == "doctor" else "Hospital Administration"
+
+    # Role-isolated notifications
+    create_role_notification(
+        "patient",
+        "Hospital Bed Allocated",
+        f"Bed {updated['bed_number']} ({updated['ward_type']}) has been allocated for your inpatient care by {staff_title}.",
+        category="bed",
+        link="/beds",
+        recipient_id=patient_user_id
+    )
+    create_role_notification(
+        "doctor",
+        "Bed Allocation Confirmed",
+        f"Inpatient Bed {updated['bed_number']} allocated to patient {payload.patient_name}.",
+        category="bed",
+        link="/beds",
+        recipient_id=doc_id
+    )
+    create_role_notification(
+        "admin",
+        "Bed Census Requisition",
+        f"{staff_title} allocated Bed {updated['bed_number']} to {payload.patient_name}.",
+        category="bed",
+        link="/beds"
+    )
+
     return {"msg": f"Patient {payload.patient_name} admitted to bed {updated['bed_number']}", "bed": updated}
 
 
@@ -289,6 +446,22 @@ def discharge_patient_from_bed(bed_id: int, authorization: str | None = Header(N
         """,
         (bed_id,)
     )
+
+    create_role_notification(
+        "admin",
+        "Inpatient Discharge Completed",
+        f"Patient {patient_name} discharged from {updated['bed_number']}. Bed sanitized.",
+        category="bed",
+        link="/beds"
+    )
+    create_role_notification(
+        "patient",
+        "Inpatient Discharge Complete",
+        f"You have been formally discharged from Bed {updated['bed_number']}. Thank you for choosing Sanjeevni Clinic.",
+        category="bed",
+        link="/beds"
+    )
+
     return {"msg": f"Patient {patient_name} successfully discharged from {updated['bed_number']}", "bed": updated}
 
 
@@ -358,6 +531,154 @@ def place_pharmacy_order(payload: PharmacyOrderRequest, authorization: str | Non
             "estimated_delivery": "Within 2 Hours (Express Clinic Delivery)"
         }
     }
+
+
+@router.post("/pharmacy/doctor-order")
+def doctor_order_pharmacy(payload: DoctorPharmacyOrderRequest, authorization: str | None = Header(None)):
+    claims = authenticated_token_claims(authorization)
+    if claims.get("role") not in ("doctor", "admin"):
+        raise HTTPException(status_code=403, detail="Only doctors and admins can prescribe and order pharmacy for patients.")
+
+    if not payload.items:
+        raise HTTPException(status_code=400, detail="Cart is empty.")
+
+    total_amount = 0.0
+    dispensed_items = []
+
+    with db.get_connection() as conn:
+        with conn.cursor() as cur:
+            for it in payload.items:
+                med_id = it.get("medicine_id")
+                qty = int(it.get("quantity", 1))
+                cur.execute("SELECT id, name, price, stock_quantity, strength FROM pharmacy_medicines WHERE id = %s", (med_id,))
+                med = cur.fetchone()
+                if not med:
+                    continue
+                med_price = float(med[2])
+                line_total = med_price * qty
+                total_amount += line_total
+                # Deduct stock
+                cur.execute("UPDATE pharmacy_medicines SET stock_quantity = GREATEST(0, stock_quantity - %s) WHERE id = %s", (qty, med_id))
+                dispensed_items.append({
+                    "medicine_id": med_id,
+                    "name": med[1],
+                    "strength": med[4],
+                    "quantity": qty,
+                    "unit_price": med_price,
+                    "line_total": line_total
+                })
+
+            # Add to patient bill in payments table with pending status
+            txn_id = f"PHARM-{uuid.uuid4().hex[:8].upper()}"
+            cur.execute(
+                """
+                INSERT INTO payments (appointment_id, user_id, amount, payment_method, status, transaction_id, phone_number, created_at)
+                VALUES (%s, %s, %s, 'pharmacy_dispensation', 'pending', %s, 'DoctorOrderDesk', NOW())
+                RETURNING id
+                """,
+                (payload.appointment_id, payload.patient_id, int(round(total_amount)), txn_id)
+            )
+            pay_id = cur.fetchone()[0]
+            conn.commit()
+
+    bill_amount = int(round(total_amount))
+    create_role_notification(
+        "patient",
+        "Prescription Medicines Billed",
+        f"Dr. {claims.get('username', 'Physician')} ordered prescribed medicines (₹{bill_amount}) for your treatment. Added to your billing ledger.",
+        category="pharmacy",
+        link="/billing",
+        recipient_id=payload.patient_id
+    )
+    create_role_notification(
+        "admin",
+        "Pharmacy Dispensation Order",
+        f"Clinical prescription order of ₹{bill_amount} placed for patient #{payload.patient_id}.",
+        category="pharmacy",
+        link="/pharmacy"
+    )
+
+    return {
+        "success": True,
+        "payment_id": pay_id,
+        "total_amount": round(total_amount, 2),
+        "dispensed_items": dispensed_items,
+        "msg": f"Pharmacy prescription fulfilled. ₹{bill_amount} added directly to patient billing ledger."
+    }
+
+
+@router.post("/pharmacy/medicines")
+def admin_add_medicine(payload: MedicineCreateRequest, authorization: str | None = Header(None)):
+    claims = authenticated_token_claims(authorization)
+    if claims.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin privileges required to manage stock.")
+
+    new_med = db.query(
+        """
+        INSERT INTO pharmacy_medicines (
+            name, generic_name, category, dosage_form, strength,
+            price, stock_quantity, batch_number, expiry_date, prescription_required
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        RETURNING *
+        """,
+        (
+            payload.name, payload.generic_name, payload.category, payload.dosage_form,
+            payload.strength, payload.price, payload.stock_quantity, payload.batch_number,
+            payload.expiry_date, payload.prescription_required
+        ),
+        decision="fetchone"
+    )
+    return {"success": True, "medicine": new_med, "msg": f"{payload.name} added to pharmacy inventory."}
+
+
+@router.put("/pharmacy/medicines/{medicine_id}")
+def admin_update_medicine(medicine_id: int, payload: MedicineUpdateRequest, authorization: str | None = Header(None)):
+    claims = authenticated_token_claims(authorization)
+    if claims.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin privileges required to manage stock.")
+
+    existing = db.query("SELECT * FROM pharmacy_medicines WHERE id = %s", (medicine_id,), decision="fetchone")
+    if not existing:
+        raise HTTPException(status_code=404, detail="Medicine not found.")
+
+    updated_name = payload.name if payload.name is not None else existing["name"]
+    updated_generic = payload.generic_name if payload.generic_name is not None else existing["generic_name"]
+    updated_cat = payload.category if payload.category is not None else existing["category"]
+    updated_form = payload.dosage_form if payload.dosage_form is not None else existing["dosage_form"]
+    updated_strength = payload.strength if payload.strength is not None else existing["strength"]
+    updated_price = payload.price if payload.price is not None else existing["price"]
+    updated_stock = payload.stock_quantity if payload.stock_quantity is not None else existing["stock_quantity"]
+    updated_batch = payload.batch_number if payload.batch_number is not None else existing["batch_number"]
+    updated_exp = payload.expiry_date if payload.expiry_date is not None else str(existing["expiry_date"])
+    updated_rx = payload.prescription_required if payload.prescription_required is not None else existing["prescription_required"]
+
+    updated = db.query(
+        """
+        UPDATE pharmacy_medicines
+        SET name = %s, generic_name = %s, category = %s, dosage_form = %s,
+            strength = %s, price = %s, stock_quantity = %s, batch_number = %s,
+            expiry_date = %s, prescription_required = %s
+        WHERE id = %s
+        RETURNING *
+        """,
+        (
+            updated_name, updated_generic, updated_cat, updated_form,
+            updated_strength, updated_price, updated_stock, updated_batch,
+            updated_exp, updated_rx, medicine_id
+        ),
+        decision="fetchone"
+    )
+    return {"success": True, "medicine": updated, "msg": f"{updated_name} updated successfully."}
+
+
+@router.delete("/pharmacy/medicines/{medicine_id}")
+def admin_delete_medicine(medicine_id: int, authorization: str | None = Header(None)):
+    claims = authenticated_token_claims(authorization)
+    if claims.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin privileges required.")
+
+    db.query("DELETE FROM pharmacy_medicines WHERE id = %s", (medicine_id,))
+    return {"success": True, "msg": "Medicine removed from pharmacy inventory."}
 
 
 # --- 5. DOCTOR REVIEWS & PATIENT SATISFACTION ---
@@ -578,6 +899,29 @@ def complete_current_opd_session(doctor_id: int, authorization: str | None = Hea
     doc_name = current.get("doctor_name") or "Doctor"
     notification_msg = f"Consultation session completed for {patient_name} with {doc_name}. Patient notified."
 
+    patient_user_id = None
+    if current.get("appointment_id"):
+        appt = db.query("SELECT user_id FROM appointments WHERE id = %s", (current["appointment_id"],), decision="fetchone")
+        if appt:
+            patient_user_id = appt["user_id"]
+
+    # Role-isolated notifications
+    create_role_notification(
+        "patient",
+        "Clinical Consultation Completed",
+        f"Dear {patient_name}, your consultation session with {doc_name} is complete. Your prescription is ready on the portal.",
+        category="opd",
+        link="/prescriptions",
+        recipient_id=patient_user_id
+    )
+    create_role_notification(
+        "admin",
+        "OPD Consultation Concluded",
+        f"{doc_name} concluded consultation for {patient_name} (Token #{current['token_number']}).",
+        category="opd",
+        link="/opd-queue"
+    )
+
     return {
         "success": True,
         "msg": notification_msg,
@@ -587,6 +931,172 @@ def complete_current_opd_session(doctor_id: int, authorization: str | None = Hea
         "notification_sent": True,
         "notification_text": f"Dear {patient_name}, your clinical consultation with {doc_name} is complete. Your prescription is ready on the portal."
     }
+
+
+@router.post("/opd-queue/check-in")
+def check_in_opd_patient(payload: OpdCheckInRequest, authorization: str | None = Header(None)):
+    claims = authenticated_token_claims(authorization)
+    if claims.get("role") not in ("doctor", "admin"):
+        raise HTTPException(status_code=403, detail="Staff privileges required to check in patients.")
+
+    today = date.today()
+    max_token_row = db.query(
+        "SELECT COALESCE(MAX(token_number), 0) AS max_t FROM opd_tokens WHERE doctor_id = %s AND token_date = %s",
+        (payload.doctor_id, today),
+        decision="fetchone"
+    )
+    next_token = (max_token_row["max_t"] if max_token_row else 0) + 1
+
+    new_token = db.query(
+        """
+        INSERT INTO opd_tokens (appointment_id, doctor_id, patient_name, token_number, token_date, status, estimated_call_time)
+        VALUES (%s, %s, %s, %s, %s, 'waiting', 'In Waiting Area')
+        RETURNING *
+        """,
+        (payload.appointment_id, payload.doctor_id, payload.patient_name, next_token, today),
+        decision="fetchone"
+    )
+    return {"success": True, "token": new_token, "msg": f"Patient {payload.patient_name} checked in as Token #{next_token}."}
+
+
+@router.post("/opd-queue/remove-token/{token_id}")
+def remove_opd_token(token_id: int, authorization: str | None = Header(None)):
+    claims = authenticated_token_claims(authorization)
+    if claims.get("role") not in ("doctor", "admin"):
+        raise HTTPException(status_code=403, detail="Staff privileges required to remove queue tokens.")
+
+    db.query("UPDATE opd_tokens SET status = 'cancelled' WHERE id = %s", (token_id,))
+    return {"success": True, "msg": f"Token #{token_id} removed from waiting queue."}
+
+
+# --- 7B. TELECONSULTATION INTERACTIVE CALLING SYSTEM ---
+
+@router.post("/teleconsult/initiate-call")
+def initiate_teleconsult_call(payload: TeleconsultCallRequest, authorization: str | None = Header(None)):
+    authenticated_token_claims(authorization)
+    recipient_role = "doctor" if payload.caller_role == "patient" else "patient"
+
+    # End any prior calling records for this appointment
+    db.query("UPDATE teleconsult_calls SET status = 'ended' WHERE appointment_id = %s AND status = 'calling'", (payload.appointment_id,))
+
+    patient_id = payload.patient_id
+    if not patient_id:
+        appt = db.query("SELECT user_id FROM appointments WHERE id = %s", (payload.appointment_id,), decision="fetchone")
+        if appt:
+            patient_id = appt["user_id"]
+
+    new_call = db.query(
+        """
+        INSERT INTO teleconsult_calls (
+            appointment_id, caller_role, caller_name, recipient_role,
+            doctor_id, patient_id, status, created_at, updated_at
+        ) VALUES (%s, %s, %s, %s, %s, %s, 'calling', NOW(), NOW())
+        RETURNING *
+        """,
+        (payload.appointment_id, payload.caller_role, payload.caller_name, recipient_role, payload.doctor_id, patient_id),
+        decision="fetchone"
+    )
+
+    if recipient_role == "doctor":
+        create_role_notification(
+            "doctor",
+            "Incoming Video Teleconsultation",
+            f"Patient {payload.caller_name} is calling you for scheduled video consultation.",
+            category="teleconsult",
+            link="/teleconsult",
+            recipient_id=payload.doctor_id
+        )
+    else:
+        create_role_notification(
+            "patient",
+            "Incoming Doctor Video Call",
+            f"Dr. {payload.caller_name} is calling you for your teleconsultation appointment.",
+            category="teleconsult",
+            link="/teleconsult",
+            recipient_id=patient_id
+        )
+
+    return {"success": True, "call": new_call}
+
+
+@router.get("/teleconsult/check-incoming-call")
+def check_incoming_call(authorization: str | None = Header(None)):
+    claims = authenticated_token_claims(authorization)
+    role = claims.get("role", "patient")
+    user_id = claims.get("id")
+    doctor_id = claims.get("doctor_id")
+
+    if role in ("doctor", "admin"):
+        # Check calls for this doctor
+        call = db.query(
+            """
+            SELECT tc.*, d.name as doctor_name
+            FROM teleconsult_calls tc
+            LEFT JOIN doctors d ON d.id = tc.doctor_id
+            WHERE tc.recipient_role = 'doctor'
+              AND (tc.doctor_id = %s OR tc.doctor_id IN (SELECT id FROM doctors WHERE user_id = %s) OR %s = 1)
+              AND tc.status = 'calling'
+              AND tc.created_at >= NOW() - INTERVAL '90 seconds'
+            ORDER BY tc.created_at DESC
+            LIMIT 1
+            """,
+            (doctor_id, user_id, 1 if role == "admin" else 0),
+            decision="fetchone"
+        )
+    else:
+        # Check calls for this patient
+        call = db.query(
+            """
+            SELECT tc.*, d.name as doctor_name
+            FROM teleconsult_calls tc
+            LEFT JOIN doctors d ON d.id = tc.doctor_id
+            WHERE tc.recipient_role = 'patient'
+              AND (tc.patient_id = %s OR tc.appointment_id IN (SELECT id FROM appointments WHERE user_id = %s))
+              AND tc.status = 'calling'
+              AND tc.created_at >= NOW() - INTERVAL '90 seconds'
+            ORDER BY tc.created_at DESC
+            LIMIT 1
+            """,
+            (user_id, user_id),
+            decision="fetchone"
+        )
+
+    if call:
+        return {"has_incoming_call": True, "call": call}
+    return {"has_incoming_call": False, "call": None}
+
+
+@router.post("/teleconsult/respond-call")
+def respond_teleconsult_call(payload: TeleconsultCallResponseRequest, authorization: str | None = Header(None)):
+    authenticated_token_claims(authorization)
+    new_status = "accepted" if payload.action.lower() == "accept" else "declined"
+    updated = db.query(
+        """
+        UPDATE teleconsult_calls
+        SET status = %s, updated_at = NOW()
+        WHERE id = %s
+        RETURNING *
+        """,
+        (new_status, payload.call_id),
+        decision="fetchone"
+    )
+    if not updated:
+        raise HTTPException(status_code=404, detail="Call record not found.")
+    return {"success": True, "call": updated, "action": payload.action}
+
+
+@router.get("/teleconsult/call-status/{call_id}")
+def get_teleconsult_call_status(call_id: int):
+    call = db.query("SELECT * FROM teleconsult_calls WHERE id = %s", (call_id,), decision="fetchone")
+    if not call:
+        raise HTTPException(status_code=404, detail="Call record not found.")
+    return {"call_id": call_id, "status": call["status"], "appointment_id": call["appointment_id"]}
+
+
+@router.post("/teleconsult/end-call/{call_id}")
+def end_teleconsult_call(call_id: int):
+    db.query("UPDATE teleconsult_calls SET status = 'ended', updated_at = NOW() WHERE id = %s", (call_id,))
+    return {"success": True, "call_id": call_id, "status": "ended"}
 
 
 # --- 8. AI CLINICAL SYMPTOM CHECKER & TRIAGE ENGINE ---
@@ -700,3 +1210,92 @@ def get_emergency_status():
             "gps_coordinates": "28.5355° N, 77.3910° E"
         }
     }
+
+
+# --- 10. ROLE-ISOLATED CLINICAL NOTIFICATIONS HUB ---
+
+@router.get("/notifications")
+def get_user_notifications(authorization: str | None = Header(None)):
+    try:
+        claims = authenticated_token_claims(authorization)
+    except Exception:
+        return {"role": "guest", "unread_count": 0, "notifications": []}
+
+    role = claims.get("role", "patient")
+    user_id = claims.get("id")
+    doctor_id = claims.get("doctor_id")
+
+    if role == "admin":
+        notifs = db.query(
+            """
+            SELECT * FROM role_notifications
+            WHERE recipient_role = 'admin'
+            ORDER BY created_at DESC
+            LIMIT 40
+            """,
+            decision="fetchall"
+        )
+    elif role == "doctor":
+        notifs = db.query(
+            """
+            SELECT * FROM role_notifications
+            WHERE recipient_role = 'doctor'
+              AND (recipient_id IS NULL OR recipient_id = %s OR recipient_id = %s)
+            ORDER BY created_at DESC
+            LIMIT 40
+            """,
+            (doctor_id, user_id),
+            decision="fetchall"
+        )
+    else:  # patient
+        notifs = db.query(
+            """
+            SELECT * FROM role_notifications
+            WHERE recipient_role = 'patient'
+              AND (recipient_id IS NULL OR recipient_id = %s)
+            ORDER BY created_at DESC
+            LIMIT 40
+            """,
+            (user_id,),
+            decision="fetchall"
+        )
+
+    unread_count = sum(1 for n in (notifs or []) if not n.get("is_read"))
+    return {
+        "role": role,
+        "unread_count": unread_count,
+        "notifications": notifs or []
+    }
+
+
+@router.post("/notifications/{notif_id}/read")
+def mark_notification_read(notif_id: int, authorization: str | None = Header(None)):
+    authenticated_token_claims(authorization)
+    db.query("UPDATE role_notifications SET is_read = TRUE WHERE id = %s", (notif_id,))
+    return {"success": True}
+
+
+@router.post("/notifications/mark-all-read")
+def mark_all_notifications_read(authorization: str | None = Header(None)):
+    try:
+        claims = authenticated_token_claims(authorization)
+    except Exception:
+        return {"success": False}
+
+    role = claims.get("role", "patient")
+    user_id = claims.get("id")
+    doctor_id = claims.get("doctor_id")
+
+    if role == "admin":
+        db.query("UPDATE role_notifications SET is_read = TRUE WHERE recipient_role = 'admin'")
+    elif role == "doctor":
+        db.query(
+            "UPDATE role_notifications SET is_read = TRUE WHERE recipient_role = 'doctor' AND (recipient_id IS NULL OR recipient_id = %s OR recipient_id = %s)",
+            (doctor_id, user_id)
+        )
+    else:
+        db.query(
+            "UPDATE role_notifications SET is_read = TRUE WHERE recipient_role = 'patient' AND (recipient_id IS NULL OR recipient_id = %s)",
+            (user_id,)
+        )
+    return {"success": True}

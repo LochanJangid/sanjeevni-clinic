@@ -317,8 +317,8 @@ export default function VitalsTrackerPage() {
 
         {/* Modal to Log Vitals */}
         {showAddModal && (
-          <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-            <div className="bg-white max-w-lg w-full rounded-3xl shadow-xl border border-gray-200 my-8 space-y-4 p-6 sm:p-8 text-[#4B5563]">
+          <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+            <div className="bg-white max-w-lg w-full rounded-3xl shadow-xl border border-gray-200 my-auto max-h-[90vh] overflow-y-auto space-y-4 p-6 sm:p-8 text-[#4B5563]">
               
               <div className="flex items-start justify-between border-b border-gray-100 pb-3">
                 <div>

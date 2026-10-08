@@ -139,7 +139,7 @@ export default function BillingPage() {
                   PHONEPE UPI &amp; GST COMPLIANT
                 </span>
                 <span className="text-xs font-mono text-gray-500 font-bold">
-                  ADMIN DESK: 7240499165 (UPI: 7240499165@upi)
+                  ADMIN DESK: 7240499165 (UPI: 7240499165-2@ybl)
                 </span>
               </div>
 
@@ -408,11 +408,11 @@ export default function BillingPage() {
         {/* Official Receipt Modal View */}
         {activeReceipt && (
           <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto no-print"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-3 sm:p-4 overflow-y-auto no-print"
             onClick={() => setActiveReceipt(null)}
           >
             <div
-              className="relative w-full max-w-3xl bg-white border border-gray-200 rounded-3xl shadow-2xl p-6 my-6 text-[#4B5563]"
+              className="relative w-full max-w-3xl bg-white border border-gray-200 rounded-3xl shadow-2xl p-4 sm:p-6 my-auto max-h-[90vh] overflow-y-auto text-[#4B5563]"
               onClick={(e) => e.stopPropagation()}
             >
               <MedicalPaymentReceipt

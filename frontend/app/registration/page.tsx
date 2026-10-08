@@ -229,8 +229,8 @@ export default function RegisterPage() {
 
       {/* Popup */}
       {popup && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 overflow-y-auto">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl max-h-[90vh] overflow-y-auto my-auto">
             {/* Icon */}
             <div
               className={`mx-auto flex h-14 w-14 items-center justify-center rounded-full ${

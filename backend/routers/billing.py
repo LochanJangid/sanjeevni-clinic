@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 
 from database.connection import Database
 from routers.users import authenticated_token_claims
+from routers.clinical import create_role_notification
 
 router = APIRouter(prefix="/billing", tags=["billing"])
 
@@ -14,7 +15,7 @@ db = Database()
 
 
 ADMIN_PAYMENT_PHONE = "7240499165"
-ADMIN_PAYMENT_UPI = "7240499165@upi"
+ADMIN_PAYMENT_UPI = "7240499165-2@ybl"
 ADMIN_PAYMENT_NAME = "Sanjeevni Hospital Admin"
 
 # Payment Provider Abstraction (Admin Payment Gateway & Cashier Desk)
@@ -201,6 +202,22 @@ def process_payment(
             )
             conn.commit()
 
+    create_role_notification(
+        "admin",
+        "Hospital Payment Received",
+        f"Received ₹{payload.amount:.2f} via {method.upper()} (Txn: {txn_code}) for Appointment #{payload.appointment_id}.",
+        category="billing",
+        link="/billing"
+    )
+    create_role_notification(
+        "patient",
+        "Payment Confirmed & Receipt Issued",
+        f"Your payment of ₹{payload.amount:.2f} was successful. Official receipt SJ-REC-{payload.appointment_id:05d} generated.",
+        category="billing",
+        link="/billing",
+        recipient_id=appt["user_id"]
+    )
+
     return {
         "success": True,
         "payment_id": pid,
@@ -242,15 +259,16 @@ def get_phonepe_details(
     merchant_vpa = HOSPITAL_MERCHANT_CONFIG["merchant_upi"]
     merchant_name = HOSPITAL_MERCHANT_CONFIG["merchant_name"]
     amount = appt["fees"]
-    doc_title = appt["doctor_name"] if appt["doctor_name"].startswith("Dr.") else f"Dr. {appt['doctor_name']}"
-    note = f"Consultation {doc_title} Ref SJ-{appointment_id}"
+    note = f"Consultation SJ{appointment_id}"
 
     import urllib.parse
     encoded_pn = urllib.parse.quote(merchant_name)
     encoded_tn = urllib.parse.quote(note)
+    amount_str = f"{float(amount):.2f}"
 
-    upi_intent_uri = f"upi://pay?pa={merchant_vpa}&pn={encoded_pn}&am={amount}&cu=INR&tn={encoded_tn}"
-    phonepe_intent_uri = f"phonepe://pay?pa={merchant_vpa}&pn={encoded_pn}&am={amount}&cu=INR&tn={encoded_tn}"
+    # Standard NPCI UPI URI - strictly accepted by PhonePe, Google Pay, Paytm scanners
+    upi_intent_uri = f"upi://pay?pa={merchant_vpa}&pn={encoded_pn}&am={amount_str}&cu=INR&tn={encoded_tn}"
+    phonepe_intent_uri = f"phonepe://pay?pa={merchant_vpa}&pn={encoded_pn}&am={amount_str}&cu=INR&tn={encoded_tn}"
 
     receipt_number = f"SJ-REC-{appointment_id:05d}"
 

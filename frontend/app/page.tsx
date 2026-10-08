@@ -262,7 +262,7 @@ export default function SanjeevniClinicHomePage() {
                   Admin Destination
                 </span>
                 <strong className="text-xl font-black text-[#1E3A8A] mt-1 block group-hover:text-[#0D9488] transition">
-                  7240499165@upi
+                  7240499165-2@ybl
                 </strong>
                 <p className="text-xs text-[#4B5563] mt-1">Direct PhonePe collections</p>
               </Link>

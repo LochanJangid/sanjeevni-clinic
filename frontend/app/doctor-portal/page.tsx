@@ -589,8 +589,8 @@ export default function DoctorPortalPage() {
 
         {/* Digital Prescription Consultation Modal */}
         {consultingAppt && (
-          <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-            <div className="p-6 sm:p-8 bg-white max-w-4xl w-full rounded-2xl shadow-xl border border-gray-200 my-8 space-y-5">
+          <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+            <div className="p-5 sm:p-8 bg-white max-w-4xl w-full rounded-2xl shadow-xl border border-gray-200 my-auto max-h-[90vh] overflow-y-auto space-y-5">
               
               <div className="flex items-start justify-between border-b border-gray-200 pb-4">
                 <div>

@@ -55,6 +55,9 @@ export default function HospitalBedsPage() {
   const [search, setSearch] = useState("");
   const [admitBedId, setAdmitBedId] = useState<number | null>(null);
   const [patientNameInput, setPatientNameInput] = useState("");
+  const [selectedPatientId, setSelectedPatientId] = useState<number | null>(null);
+  const [requisitionNotes, setRequisitionNotes] = useState("");
+  const [patients, setPatients] = useState<Array<{ id: number; username: string; mobile: string | null }>>([]);
   const [admitting, setAdmitting] = useState(false);
   const [hospitalName, setHospitalName] = useState("Sanjeevni Medical Pavilion");
 
@@ -68,7 +71,10 @@ export default function HospitalBedsPage() {
   }, []);
 
   const claims = getAuthClaims();
-  const isStaff = claims?.role === "admin" || claims?.role === "doctor";
+  const userRole = claims?.role || "guest";
+  const isDoctor = userRole === "doctor";
+  const isAdmin = userRole === "admin";
+  const isPatient = userRole === "patient" || userRole === "guest";
 
   async function loadBeds() {
     try {
@@ -85,9 +91,28 @@ export default function HospitalBedsPage() {
     }
   }
 
+  async function loadPatients() {
+    try {
+      const token = getAuthToken();
+      if (!token) return;
+      const res = await fetch(`${API_URL}/clinical/patients-list`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setPatients(data.patients || []);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
   useEffect(() => {
     loadBeds();
-  }, []);
+    if (isDoctor || isAdmin) {
+      loadPatients();
+    }
+  }, [userRole]);
 
   async function handleAdmit(e: React.FormEvent) {
     e.preventDefault();
@@ -102,11 +127,17 @@ export default function HospitalBedsPage() {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ patient_name: patientNameInput.trim() }),
+        body: JSON.stringify({
+          patient_name: patientNameInput.trim(),
+          patient_id: selectedPatientId,
+          requisition_notes: requisitionNotes.trim(),
+        }),
       });
       if (res.ok) {
         setAdmitBedId(null);
         setPatientNameInput("");
+        setSelectedPatientId(null);
+        setRequisitionNotes("");
         await loadBeds();
       }
     } catch (e) {
@@ -372,26 +403,44 @@ export default function HospitalBedsPage() {
 
                   <div className="p-3.5 rounded-xl bg-slate-50 border border-gray-100 text-xs space-y-1.5 mb-4">
                     {isOccupied ? (
-                      <>
-                        <div className="flex items-center justify-between">
-                          <span className="text-gray-500 text-[11px]">Inpatient:</span>
-                          <strong className="text-[#1E3A8A] font-semibold">{bed.patient_name}</strong>
-                        </div>
-                        {bed.doctor_name && (
+                      isPatient ? (
+                        <>
                           <div className="flex items-center justify-between">
-                            <span className="text-gray-500 text-[11px]">Attending MD:</span>
-                            <span className="text-[#0D9488] font-semibold">{bed.doctor_name}</span>
+                            <span className="text-gray-500 text-[11px]">Bed Status:</span>
+                            <strong className="text-amber-700 font-semibold text-[11px]">Occupied (Inpatient Under Treatment)</strong>
                           </div>
-                        )}
-                        {bed.admitted_at && (
+                          {bed.doctor_name && (
+                            <div className="flex items-center justify-between">
+                              <span className="text-gray-500 text-[11px]">Attending MD:</span>
+                              <span className="text-[#0D9488] font-semibold text-[11px]">{bed.doctor_name}</span>
+                            </div>
+                          )}
+                          <div className="text-[10px] text-gray-400 italic pt-0.5">
+                            Clinical privacy protected • Inpatient details confidential
+                          </div>
+                        </>
+                      ) : (
+                        <>
                           <div className="flex items-center justify-between">
-                            <span className="text-gray-500 text-[11px]">Admitted On:</span>
-                            <span className="text-gray-500 text-[11px]">
-                              {new Date(bed.admitted_at).toLocaleDateString()}
-                            </span>
+                            <span className="text-gray-500 text-[11px]">Inpatient:</span>
+                            <strong className="text-[#1E3A8A] font-semibold">{bed.patient_name}</strong>
                           </div>
-                        )}
-                      </>
+                          {bed.doctor_name && (
+                            <div className="flex items-center justify-between">
+                              <span className="text-gray-500 text-[11px]">Attending MD:</span>
+                              <span className="text-[#0D9488] font-semibold">{bed.doctor_name}</span>
+                            </div>
+                          )}
+                          {bed.admitted_at && (
+                            <div className="flex items-center justify-between">
+                              <span className="text-gray-500 text-[11px]">Admitted On:</span>
+                              <span className="text-gray-500 text-[11px]">
+                                {new Date(bed.admitted_at).toLocaleDateString()}
+                              </span>
+                            </div>
+                          )}
+                        </>
+                      )
                     ) : (
                       <div className="text-[#0D9488] text-[11px] font-medium flex items-center gap-1.5 py-0.5">
                         <CheckCircle2 className="w-3.5 h-3.5 text-[#0D9488]" />
@@ -400,26 +449,79 @@ export default function HospitalBedsPage() {
                     )}
                   </div>
 
-                  {/* Bed Action Trigger */}
+                  {/* Bed Action Trigger - Role Isolated */}
                   <div className="pt-2 border-t border-gray-100">
-                    {isOccupied ? (
-                      <button
-                        type="button"
-                        onClick={() => handleDischarge(bed.id)}
-                        className="w-full py-2 bg-slate-50 hover:bg-rose-50 text-[#4B5563] hover:text-rose-600 border border-gray-200 hover:border-rose-200 font-semibold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-all"
-                      >
-                        <LogOut className="w-3.5 h-3.5" />
-                        <span>Discharge Patient</span>
-                      </button>
+                    {isPatient ? (
+                      /* Patient View Only - Cannot take action */
+                      isOccupied ? (
+                        <div className="w-full py-2 bg-amber-50 text-amber-700 text-xs font-semibold rounded-xl text-center border border-amber-200">
+                          Inpatient Care In Progress • Bed Unavailable
+                        </div>
+                      ) : (
+                        <div className="space-y-1.5">
+                          <div className="w-full py-1.5 bg-teal-50 text-[#0D9488] text-[11px] font-bold rounded-xl text-center border border-teal-200">
+                            ✓ Vacant &amp; Available for Inpatient Care
+                          </div>
+                          <Link
+                            href="/doctors"
+                            className="w-full py-2 bg-slate-50 hover:bg-slate-100 text-[#1E3A8A] font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 transition border border-gray-200"
+                          >
+                            <span>Consult Doctor for Bed Requisition →</span>
+                          </Link>
+                        </div>
+                      )
+                    ) : isDoctor ? (
+                      /* Doctor Requisition & Assignment Mode */
+                      isOccupied ? (
+                        <button
+                          type="button"
+                          onClick={() => handleDischarge(bed.id)}
+                          className="w-full py-2 bg-slate-50 hover:bg-rose-50 text-[#4B5563] hover:text-rose-600 border border-gray-200 hover:border-rose-200 font-semibold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-all"
+                        >
+                          <LogOut className="w-3.5 h-3.5" />
+                          <span>Discharge Patient</span>
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAdmitBedId(bed.id);
+                            setPatientNameInput("");
+                            setSelectedPatientId(null);
+                            setRequisitionNotes("");
+                          }}
+                          className="w-full py-2 bg-[#0D9488] hover:bg-[#0F766E] text-white font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-sm"
+                        >
+                          <UserPlus className="w-3.5 h-3.5" />
+                          <span>Request / Assign Bed for Patient</span>
+                        </button>
+                      )
                     ) : (
-                      <button
-                        type="button"
-                        onClick={() => setAdmitBedId(bed.id)}
-                        className="w-full py-2 bg-[#0D9488] hover:bg-[#0F766E] text-white font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-sm"
-                      >
-                        <UserPlus className="w-3.5 h-3.5" />
-                        <span>Admit Patient to Bed</span>
-                      </button>
+                      /* Admin Full Hospital Management Mode */
+                      isOccupied ? (
+                        <button
+                          type="button"
+                          onClick={() => handleDischarge(bed.id)}
+                          className="w-full py-2 bg-slate-50 hover:bg-rose-50 text-[#4B5563] hover:text-rose-600 border border-gray-200 hover:border-rose-200 font-semibold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-all"
+                        >
+                          <LogOut className="w-3.5 h-3.5" />
+                          <span>Discharge Patient</span>
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAdmitBedId(bed.id);
+                            setPatientNameInput("");
+                            setSelectedPatientId(null);
+                            setRequisitionNotes("");
+                          }}
+                          className="w-full py-2 bg-[#0D9488] hover:bg-[#0F766E] text-white font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-sm"
+                        >
+                          <UserPlus className="w-3.5 h-3.5" />
+                          <span>Admit Patient to Bed</span>
+                        </button>
+                      )
                     )}
                   </div>
                 </div>
@@ -428,23 +530,49 @@ export default function HospitalBedsPage() {
           </div>
         )}
 
-        {/* Admit Modal */}
+        {/* Scrollable Bed Requisition / Admission Modal */}
         {admitBedId !== null && (
-          <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="bg-white p-6 sm:p-8 max-w-md w-full rounded-3xl shadow-2xl border border-gray-200 space-y-4">
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+            <div className="bg-white p-6 sm:p-8 max-w-lg w-full rounded-3xl shadow-2xl border border-gray-200 space-y-4 max-h-[90vh] overflow-y-auto my-auto">
               <div>
                 <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-teal-50 text-[#0D9488] border border-teal-200 mb-2 inline-flex">
-                  ADMISSION PROTOCOL
+                  {isDoctor ? "PHYSICIAN BED REQUISITION" : "ADMISSION PROTOCOL"}
                 </span>
                 <h3 className="text-lg font-bold text-[#1E3A8A]">
-                  Admit Inpatient to Bed
+                  {isDoctor ? "Doctor Bed Requisition & Assignment" : "Admit Inpatient to Bed"}
                 </h3>
                 <p className="text-xs text-gray-500 mt-1">
-                  Assign patient to bed and generate electronic inpatient admission log.
+                  {isDoctor
+                    ? "Select registered patient or enter name to issue an electronic bed assignment order."
+                    : "Assign patient to bed and generate electronic inpatient admission log."}
                 </p>
               </div>
 
               <form onSubmit={handleAdmit} className="space-y-4 pt-2">
+                {patients.length > 0 && (
+                  <div>
+                    <label className="block text-[11px] font-semibold uppercase text-gray-500 mb-1.5">
+                      Select Registered Patient
+                    </label>
+                    <select
+                      className="w-full text-xs p-3 bg-slate-50 border border-gray-200 rounded-xl text-[#1E3A8A] focus:outline-none focus:border-[#0D9488] focus:ring-1 focus:ring-[#0D9488] transition"
+                      onChange={(e) => {
+                        const pid = Number(e.target.value);
+                        setSelectedPatientId(pid || null);
+                        const found = patients.find((p) => p.id === pid);
+                        if (found) setPatientNameInput(found.username);
+                      }}
+                    >
+                      <option value="">-- Choose patient or type custom name below --</option>
+                      {patients.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.username} {p.mobile ? `(${p.mobile})` : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
                 <div>
                   <label className="block text-[11px] font-semibold uppercase text-gray-500 mb-1.5">
                     Patient Full Name *
@@ -457,6 +585,19 @@ export default function HospitalBedsPage() {
                     className="w-full text-xs p-3 bg-white border border-gray-200 rounded-xl text-[#1E3A8A] placeholder-gray-400 focus:outline-none focus:border-[#0D9488] focus:ring-1 focus:ring-[#0D9488] transition"
                     required
                     autoFocus
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold uppercase text-gray-500 mb-1.5">
+                    Clinical Indication / Diagnosis Notes
+                  </label>
+                  <input
+                    type="text"
+                    value={requisitionNotes}
+                    onChange={(e) => setRequisitionNotes(e.target.value)}
+                    placeholder="e.g. Acute respiratory distress, post-op observation"
+                    className="w-full text-xs p-3 bg-white border border-gray-200 rounded-xl text-[#1E3A8A] placeholder-gray-400 focus:outline-none focus:border-[#0D9488] focus:ring-1 focus:ring-[#0D9488] transition"
                   />
                 </div>
 
@@ -473,7 +614,7 @@ export default function HospitalBedsPage() {
                     disabled={admitting}
                     className="px-5 py-2 bg-[#0D9488] hover:bg-[#0F766E] text-white text-xs font-bold rounded-xl shadow-sm transition disabled:opacity-50"
                   >
-                    {admitting ? "Transmitting..." : "Confirm Inpatient Admission"}
+                    {admitting ? "Transmitting..." : isDoctor ? "Issue Bed Allocation Order" : "Confirm Inpatient Admission"}
                   </button>
                 </div>
               </form>

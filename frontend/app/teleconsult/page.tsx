@@ -1,22 +1,27 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { 
-  Video, 
-  Calendar, 
-  Clock, 
-  User, 
-  ShieldCheck, 
-  ArrowRight, 
-  CheckCircle2, 
-  Wifi, 
-  Headphones, 
+import {
+  Video,
+  Calendar,
+  Clock,
+  User,
+  ShieldCheck,
+  ArrowRight,
+  CheckCircle2,
+  Wifi,
+  Headphones,
   Sparkles,
   Stethoscope,
   FileText,
   Activity,
-  Plus
+  Plus,
+  Phone,
+  PhoneOff,
+  X,
+  AlertCircle
 } from "lucide-react";
 import { getAuthToken, parseTokenClaims } from "../../lib/auth";
 
@@ -35,10 +40,19 @@ interface TeleconsultAppointment {
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
 export default function TeleconsultationHubPage() {
+  const router = useRouter();
   const [appointments, setAppointments] = useState<TeleconsultAppointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState<"patient" | "doctor" | "admin">("patient");
   const [userName, setUserName] = useState("");
+
+  // Outgoing call modal state
+  const [outgoingCall, setOutgoingCall] = useState<{
+    callId: number;
+    appointmentId: number;
+    recipientName: string;
+    status: string;
+  } | null>(null);
 
   useEffect(() => {
     async function loadAppointments() {
@@ -82,6 +96,76 @@ export default function TeleconsultationHubPage() {
     }
     loadAppointments();
   }, []);
+
+  // Poll outgoing call status
+  useEffect(() => {
+    if (!outgoingCall || outgoingCall.status !== "calling") return;
+
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`${API_URL}/clinical/teleconsult/call-status/${outgoingCall.callId}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.status === "accepted") {
+            const destAppt = outgoingCall.appointmentId;
+            const destCallId = outgoingCall.callId;
+            setOutgoingCall(null);
+            router.push(`/teleconsult/${destAppt}?call_id=${destCallId}`);
+          } else if (data.status === "declined") {
+            setOutgoingCall((prev) => (prev ? { ...prev, status: "declined" } : null));
+          }
+        }
+      } catch (e) {
+        console.error("Call status poll error:", e);
+      }
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [outgoingCall, router]);
+
+  async function handleInitiateCall(appt: TeleconsultAppointment) {
+    const token = getAuthToken();
+    if (!token) return;
+
+    const recipientName = isDoctor ? (appt.patient_name || "Patient") : appt.doctor_name;
+
+    try {
+      const res = await fetch(`${API_URL}/clinical/teleconsult/initiate-call`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          appointment_id: appt.id,
+          doctor_id: appt.doctor_id,
+          caller_role: isDoctor ? "doctor" : "patient",
+          caller_name: userName || (isDoctor ? "Doctor" : "Patient"),
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setOutgoingCall({
+          callId: data.call.id,
+          appointmentId: appt.id,
+          recipientName,
+          status: "calling",
+        });
+      }
+    } catch (e) {
+      console.error("Failed to initiate call:", e);
+    }
+  }
+
+  async function handleCancelCall() {
+    if (outgoingCall) {
+      try {
+        await fetch(`${API_URL}/clinical/teleconsult/end-call/${outgoingCall.callId}`, { method: "POST" });
+      } catch (e) {}
+      setOutgoingCall(null);
+    }
+  }
 
   const isDoctor = userRole === "doctor" || userRole === "admin";
 
@@ -160,7 +244,7 @@ export default function TeleconsultationHubPage() {
           </div>
         </div>
 
-        {/* Teleconsult List */}
+        {/* Teleconsult Appointments List */}
         <div>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-bold text-[#1E3A8A]">
@@ -257,13 +341,23 @@ export default function TeleconsultationHubPage() {
                     </div>
                   </div>
 
-                  <div className="mt-5 pt-3 border-t border-gray-100">
+                  {/* Dual Action: Live Ring Call or Direct Enter */}
+                  <div className="mt-5 pt-3 border-t border-gray-100 flex flex-col sm:flex-row gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleInitiateCall(appt)}
+                      className="flex-1 py-2.5 bg-[#0D9488] hover:bg-[#0F766E] text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2 transition-all shadow-sm"
+                    >
+                      <Phone className="w-4 h-4 text-white animate-pulse" />
+                      <span>{isDoctor ? "Call Patient 📞" : "Call Doctor 📞"}</span>
+                    </button>
+
                     <Link
                       href={`/teleconsult/${appt.id}`}
-                      className="w-full py-2.5 bg-[#0D9488] hover:bg-[#0F766E] text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2 transition-all shadow-sm cursor-pointer"
+                      className="py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-[#1E3A8A] font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 transition"
                     >
-                      <Video className="w-4 h-4" />
-                      <span>{isDoctor ? "Start Video Consult & Prescribe" : "Enter Video Consultation Room"}</span>
+                      <Video className="w-3.5 h-3.5 text-[#1E3A8A]" />
+                      <span>Chamber</span>
                     </Link>
                   </div>
                 </div>
@@ -272,6 +366,65 @@ export default function TeleconsultationHubPage() {
           )}
         </div>
       </div>
+
+      {/* Outgoing Calling Modal */}
+      {outgoingCall && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-3 sm:p-4 overflow-y-auto no-print animate-in fade-in duration-200">
+          <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl border border-gray-200 overflow-y-auto max-h-[90vh] my-auto p-6 sm:p-8 text-center space-y-6">
+            {/* Radar Ringing Animation */}
+            <div className="relative mx-auto w-24 h-24 flex items-center justify-center">
+              {outgoingCall.status === "calling" ? (
+                <>
+                  <span className="absolute inset-0 rounded-full bg-[#0D9488]/20 animate-ping" />
+                  <span className="absolute inset-2 rounded-full bg-[#0D9488]/30 animate-pulse" />
+                  <div className="relative w-20 h-20 rounded-full bg-[#0D9488] text-white flex items-center justify-center font-bold text-2xl shadow-lg border-2 border-white">
+                    <Phone className="w-8 h-8 text-white animate-pulse" />
+                  </div>
+                </>
+              ) : (
+                <div className="relative w-20 h-20 rounded-full bg-rose-100 text-rose-700 flex items-center justify-center font-bold text-2xl shadow-lg border-2 border-rose-200">
+                  <PhoneOff className="w-8 h-8 text-rose-600" />
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
+              <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-teal-50 text-[#0D9488] border border-teal-200 inline-block">
+                {outgoingCall.status === "calling" ? "OUTGOING TELECONSULTATION CALL" : "CALL NOT ANSWERED"}
+              </span>
+              <h2 className="text-xl font-black text-[#1E3A8A]">
+                {outgoingCall.recipientName}
+              </h2>
+              <p className="text-xs text-[#4B5563]">
+                {outgoingCall.status === "calling"
+                  ? "Ringing teleconsultation chamber… Waiting for the other party to answer."
+                  : "The recipient is currently unavailable or declined the call."}
+              </p>
+            </div>
+
+            <div className="pt-2">
+              {outgoingCall.status === "calling" ? (
+                <button
+                  type="button"
+                  onClick={handleCancelCall}
+                  className="w-full py-3 px-4 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-sm transition"
+                >
+                  <PhoneOff className="w-4 h-4 text-white" />
+                  <span>Cancel Call</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setOutgoingCall(null)}
+                  className="w-full py-3 px-4 rounded-xl bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs transition"
+                >
+                  Close
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

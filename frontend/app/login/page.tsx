@@ -315,8 +315,8 @@ export default function LoginPage() {
 
       {/* Popup Notification */}
       {popup && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
-          <div className="w-full max-w-sm rounded-3xl bg-white border border-gray-200 p-6 shadow-xl text-center space-y-4 animate-in fade-in zoom-in-95">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="w-full max-w-sm rounded-3xl bg-white border border-gray-200 p-6 shadow-xl text-center space-y-4 animate-in fade-in zoom-in-95 max-h-[90vh] overflow-y-auto my-auto">
             <div className={`w-12 h-12 rounded-2xl mx-auto flex items-center justify-center ${
               popup.type === "success" ? "bg-teal-50 text-[#0D9488]" : "bg-red-50 text-red-600"
             }`}>

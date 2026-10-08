@@ -594,8 +594,8 @@ export default function AdminPage() {
 
         {/* MODAL 1: APPOINT DOCTOR MODAL */}
         {showDoctorModal && (
-          <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-            <div className="p-6 sm:p-8 bg-white max-w-xl w-full rounded-2xl shadow-xl border border-gray-200 my-8 space-y-4">
+          <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+            <div className="p-6 sm:p-8 bg-white max-w-xl w-full rounded-2xl shadow-xl border border-gray-200 my-auto max-h-[90vh] overflow-y-auto space-y-4">
               <div className="flex items-start justify-between border-b border-gray-200 pb-3">
                 <div>
                   <span className="px-2.5 py-0.5 rounded-full bg-teal-50 text-[#0D9488] border border-teal-200 text-[10px] font-bold mb-1 inline-flex">
@@ -727,8 +727,8 @@ export default function AdminPage() {
 
         {/* MODAL 2: SUCCESS DOCTOR CREATED & KEY DISPLAY */}
         {newDoctorCreated && (
-          <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="p-6 sm:p-8 bg-white max-w-md w-full rounded-2xl shadow-xl border border-gray-200 text-center space-y-5 animate-in fade-in zoom-in-95">
+          <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+            <div className="p-6 sm:p-8 bg-white max-w-md w-full rounded-2xl shadow-xl border border-gray-200 text-center space-y-5 animate-in fade-in zoom-in-95 my-auto max-h-[90vh] overflow-y-auto">
               <div className="w-14 h-14 rounded-2xl bg-teal-50 text-[#0D9488] mx-auto flex items-center justify-center font-bold">
                 <CheckCircle2 className="w-8 h-8" />
               </div>

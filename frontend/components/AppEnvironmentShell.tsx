@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import SiteHeader from "../app/SiteHeader";
 import HospitalFooter from "./HospitalFooter";
 import AssistantWidget from "../app/AssistantWidget";
+import TeleconsultCallManager from "./TeleconsultCallManager";
 
 export default function AppEnvironmentShell({
   children,
@@ -22,6 +23,7 @@ export default function AppEnvironmentShell({
         <SiteHeader />
       </Suspense>
       <main className="flex-1 bg-white">{children}</main>
+      <TeleconsultCallManager />
       <AssistantWidget />
       <HospitalFooter />
     </div>
