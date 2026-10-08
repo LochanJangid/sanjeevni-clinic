@@ -11,10 +11,10 @@ const geistSans = Geist({
 
 export const metadata: Metadata = {
   title: {
-    default: "Lochan Jangid | Hospital & Medical Operating System",
-    template: "%s | Hospital OS",
+    default: "Sanjeevni Super-Specialty Clinic & Hospital System",
+    template: "%s | Sanjeevni Clinic",
   },
-  description: "Enterprise hospital operating system for patient care, doctor consultation, bed census, OPD TV queue, and PhonePe billing.",
+  description: "Official clinical platform for Sanjeevni Clinic. Doctor appointments, live OPD queue, inpatient bed census, pathology laboratory, and digital prescriptions.",
 };
 
 export default function RootLayout({
@@ -28,7 +28,7 @@ export default function RootLayout({
       className={`${geistSans.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <Suspense fallback={<div className="min-h-screen bg-slate-950" />}>
+        <Suspense fallback={<div className="min-h-screen bg-white" />}>
           <AppEnvironmentShell>{children}</AppEnvironmentShell>
         </Suspense>
       </body>

@@ -52,19 +52,20 @@ export function clearAuthSession() {
   window.dispatchEvent(new Event("sanjeevni-session-change"));
 }
 
-export async function loginAsDemoRole(role: "patient" | "doctor" | "admin"): Promise<boolean> {
+export async function loginWithDoctorKey(doctorKey: string): Promise<{ success: boolean; error?: string }> {
   try {
-    const response = await fetch(`${API_URL}/users/demo_login/${role}`, {
+    const response = await fetch(`${API_URL}/users/doctor_key_login/`, {
       method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ doctor_key: doctorKey.trim().toUpperCase() }),
     });
-    if (!response.ok) return false;
     const data = await response.json();
-    if (data.access_token) {
+    if (response.ok && data.access_token) {
       setAuthSession(data.access_token);
-      return true;
+      return { success: true };
     }
-    return false;
+    return { success: false, error: data.detail || "Invalid Doctor Access Key" };
   } catch {
-    return false;
+    return { success: false, error: "Unable to reach authorization server." };
   }
 }

@@ -2,13 +2,25 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { ArrowLeft, Building2, Code2, Edit3, Heart, Mail, Phone, ShieldCheck, Sparkles } from "lucide-react";
-import { getStoredHospitalName, setStoredHospitalName } from "../lib/hospital";
+import { 
+  Building2, 
+  Heart, 
+  Mail, 
+  MapPin, 
+  PhoneCall, 
+  ShieldCheck, 
+  Sparkles,
+  Calendar,
+  Clock,
+  Tv,
+  Bed,
+  CreditCard,
+  MessageSquare
+} from "lucide-react";
+import { getStoredHospitalName } from "../lib/hospital";
 
 export default function HospitalFooter() {
-  const [hospitalName, setHospitalName] = useState("Sanjeevni Medical Pavilion");
-  const [showRenameModal, setShowRenameModal] = useState(false);
-  const [newNameInput, setNewNameInput] = useState("");
+  const [hospitalName, setHospitalName] = useState("Sanjeevni Super-Specialty Clinic");
 
   useEffect(() => {
     setHospitalName(getStoredHospitalName());
@@ -19,207 +31,157 @@ export default function HospitalFooter() {
     return () => window.removeEventListener("hospital-name-change", handleNameChange);
   }, []);
 
-  function handleSaveName(e: React.FormEvent) {
-    e.preventDefault();
-    if (newNameInput.trim()) {
-      setStoredHospitalName(newNameInput.trim());
-      setHospitalName(newNameInput.trim());
-      setShowRenameModal(false);
-    }
-  }
-
   return (
-    <footer className="mt-auto border-t border-slate-200 bg-white no-print">
-      {/* Upper Hospital Facility Bar */}
-      <div className="bg-slate-900 text-white py-6 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <span className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold text-xl shadow-md">
-              ✚
-            </span>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-base sm:text-lg font-bold text-white tracking-tight">
-                  {hospitalName}
-                </h3>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setNewNameInput(hospitalName);
-                    setShowRenameModal(true);
-                  }}
-                  className="px-2 py-0.5 rounded-md bg-white/10 hover:bg-white/20 text-emerald-300 text-[11px] font-semibold flex items-center gap-1 transition"
-                  title="Rename hospital in demo"
-                >
-                  <Edit3 className="w-3 h-3" />
-                  <span>Rename</span>
-                </button>
-              </div>
-              <p className="text-xs text-slate-400">
-                Digital Outpatient, Inpatient &amp; Diagnostic Healthcare Management Ecosystem
-              </p>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-4 text-xs">
-            <Link href="/doctors" className="text-slate-300 hover:text-white transition">
-              Find Doctors
-            </Link>
-            <Link href="/appointments" className="text-slate-300 hover:text-white transition">
-              Appointments
-            </Link>
-            <Link href="/opd-queue" className="text-slate-300 hover:text-white transition">
-              OPD TV Signage
-            </Link>
-            <Link href="/beds" className="text-slate-300 hover:text-white transition">
-              Bed Census
-            </Link>
-            <Link href="/billing" className="text-slate-300 hover:text-white transition">
-              Billing &amp; Receipts
-            </Link>
-            <Link href="/prescriptions" className="text-slate-300 hover:text-white transition">
-              Prescriptions
-            </Link>
-          </div>
-        </div>
-      </div>
-
-      {/* DEVELOPER CREDIT & BACK TO PRODUCT SELLING PORTAL STRIP (AS REQUESTED) */}
-      <div className="bg-gradient-to-r from-emerald-950 via-slate-950 to-slate-900 text-white py-8 px-4 sm:px-6 lg:px-8 border-t border-emerald-500/20">
-        <div className="max-w-7xl mx-auto flex flex-col lg:flex-row items-center justify-between gap-6 text-center lg:text-left">
-          {/* Developer Identity */}
-          <div className="space-y-1.5 max-w-xl">
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-bold uppercase tracking-wider border border-emerald-500/30">
-              <Code2 className="w-3 h-3" />
-              <span>Full System Architect &amp; Software Engineer</span>
-            </div>
-            <h4 className="text-base sm:text-lg font-black tracking-tight text-white">
-              Architected &amp; Built by <span className="text-emerald-400">Lochan Jangid</span>
-            </h4>
-            <p className="text-xs text-slate-300 leading-relaxed">
-              Healthcare Software Engineer. Providing reliable patient, doctor, and admin hospital systems with custom branding, annual licensing with software escrow, and local deployment for hospitals &amp; clinics.
-            </p>
-          </div>
-
-          {/* Action to Return to Lochan's Product Sales Portal */}
-          <div className="flex flex-col sm:flex-row items-center gap-3">
-            <Link
-              href="/"
-              className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-lg transition transform hover:-translate-y-0.5"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              <span>Back to Lochan&apos;s Product Sales &amp; Licensing Portal</span>
-            </Link>
-
-            <button
-              type="button"
-              onClick={() => {
-                setNewNameInput(hospitalName);
-                setShowRenameModal(true);
-              }}
-              className="inline-flex items-center gap-1.5 px-4 py-3 rounded-xl bg-white/10 hover:bg-white/20 text-slate-200 font-semibold text-xs border border-white/10 transition"
-            >
-              <Building2 className="w-4 h-4 text-emerald-400" />
-              <span>Change Hospital Name</span>
-            </button>
-          </div>
-        </div>
-
-        <div className="max-w-7xl mx-auto mt-6 pt-5 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-2 text-[11px] text-slate-400">
-          <p>© 2026 Lochan Jangid. Commercial Hospital Operating System. All Rights Reserved.</p>
-          <div className="flex items-center gap-4">
-            <span className="flex items-center gap-1 text-slate-300">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Ready for Commercial Deployment</span>
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* Rename Hospital Modal */}
-      {showRenameModal && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 backdrop-blur-sm p-4"
-          onClick={() => setShowRenameModal(false)}
-        >
-          <div
-            className="w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl border border-slate-200"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center gap-2.5 mb-2">
-              <span className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold">
-                🏥
+    <footer className="mt-auto border-t border-gray-200 bg-slate-50 text-[#4B5563] text-xs no-print">
+      {/* Main Hospital Information Grid */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+          {/* Col 1: Hospital Brand & Accreditation */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2.5 text-[#1E3A8A] font-bold text-sm">
+              <span className="w-8 h-8 rounded-xl bg-[#0D9488] text-white flex items-center justify-center font-black text-sm shadow-sm">
+                ✚
               </span>
               <div>
-                <h3 className="text-base font-bold text-slate-900">
-                  White-Label Hospital Rebranding
-                </h3>
-                <p className="text-xs text-slate-500">
-                  Change the active hospital name across the entire operating system
-                </p>
+                <span className="block font-black tracking-tight text-[#1E3A8A]">{hospitalName.toUpperCase()}</span>
+                <span className="block text-[10px] font-mono text-[#0D9488] font-bold">SUPER-SPECIALTY PAVILION</span>
               </div>
             </div>
+            <p className="text-[#4B5563] text-xs leading-relaxed">
+              Providing patient-centered clinical care, expert multi-specialty physician chambers, live OPD token queues, and 24x7 emergency trauma resuscitation.
+            </p>
+            <div className="text-[11px] font-mono text-gray-500 pt-1">
+              Registration No: <strong className="text-gray-700">CEA-RJ-2024-8842</strong>
+            </div>
+          </div>
 
-            <form onSubmit={handleSaveName} className="mt-4 space-y-3">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Your Hospital or Clinic Name:
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={newNameInput}
-                  onChange={(e) => setNewNameInput(e.target.value)}
-                  placeholder="e.g. Apollo Multi-Specialty Clinic"
-                  className="w-full px-3.5 py-2.5 text-xs font-medium rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-600 bg-slate-50"
-                  autoFocus
-                />
-              </div>
+          {/* Col 2: Clinical Services & Departments */}
+          <div className="space-y-3">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-[#1E3A8A]">
+              Specialized Departments
+            </h4>
+            <ul className="space-y-2 text-xs">
+              <li>
+                <Link href="/doctors" className="hover:text-[#0D9488] transition text-[#4B5563]">
+                  Cardiology &amp; Vascular Sciences
+                </Link>
+              </li>
+              <li>
+                <Link href="/doctors" className="hover:text-[#0D9488] transition text-[#4B5563]">
+                  Dermatology &amp; Cosmetology
+                </Link>
+              </li>
+              <li>
+                <Link href="/doctors" className="hover:text-[#0D9488] transition text-[#4B5563]">
+                  General Medicine &amp; Diabetology
+                </Link>
+              </li>
+              <li>
+                <Link href="/doctors" className="hover:text-[#0D9488] transition text-[#4B5563]">
+                  Neurology &amp; Spine Care
+                </Link>
+              </li>
+              <li>
+                <Link href="/doctors" className="hover:text-[#0D9488] transition text-[#4B5563]">
+                  Pediatrics &amp; Child Health
+                </Link>
+              </li>
+              <li>
+                <Link href="/doctors" className="hover:text-[#0D9488] transition text-[#4B5563]">
+                  Orthopedics &amp; Joint Surgery
+                </Link>
+              </li>
+            </ul>
+          </div>
 
-              {/* Quick Preset Buttons */}
-              <div className="space-y-1">
-                <span className="text-[10px] uppercase font-bold text-slate-400">
-                  Quick Presets:
-                </span>
-                <div className="flex flex-wrap gap-1.5">
-                  {[
-                    "Apollo Health City",
-                    "Max Super-Specialty Hospital",
-                    "Fortis Care Clinic",
-                    "LifeLine Nursing Home",
-                    "City Multi-Specialty Center",
-                  ].map((preset) => (
-                    <button
-                      key={preset}
-                      type="button"
-                      onClick={() => setNewNameInput(preset)}
-                      className="px-2 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-medium transition"
-                    >
-                      {preset}
-                    </button>
-                  ))}
-                </div>
-              </div>
+          {/* Col 3: Patient Care Links */}
+          <div className="space-y-3">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-[#1E3A8A]">
+              Patient Care Portals
+            </h4>
+            <ul className="space-y-2 text-xs">
+              <li>
+                <Link href="/doctors" className="hover:text-[#0D9488] transition flex items-center gap-1.5 text-[#4B5563]">
+                  <Calendar className="w-3.5 h-3.5 text-[#0D9488]" />
+                  <span>Book Consultation</span>
+                </Link>
+              </li>
+              <li>
+                <Link href="/chat" className="hover:text-[#0D9488] transition flex items-center gap-1.5 text-[#4B5563]">
+                  <MessageSquare className="w-3.5 h-3.5 text-[#0D9488]" />
+                  <span>AI Health Assistant</span>
+                </Link>
+              </li>
+              <li>
+                <Link href="/opd-queue" className="hover:text-[#0D9488] transition flex items-center gap-1.5 text-[#4B5563]">
+                  <Tv className="w-3.5 h-3.5 text-[#0D9488]" />
+                  <span>OPD Queue Waiting TV</span>
+                </Link>
+              </li>
+              <li>
+                <Link href="/beds" className="hover:text-[#0D9488] transition flex items-center gap-1.5 text-[#4B5563]">
+                  <Bed className="w-3.5 h-3.5 text-[#0D9488]" />
+                  <span>Inpatient Bed Census</span>
+                </Link>
+              </li>
+              <li>
+                <Link href="/emergency" className="hover:text-red-600 transition flex items-center gap-1.5 text-[#4B5563]">
+                  <PhoneCall className="w-3.5 h-3.5 text-red-500" />
+                  <span>Emergency SOS Command</span>
+                </Link>
+              </li>
+            </ul>
+          </div>
 
-              <div className="pt-2 flex gap-2">
-                <button
-                  type="submit"
-                  className="flex-1 py-2.5 px-4 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs transition"
-                >
-                  Apply &amp; Rebrand System →
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowRenameModal(false)}
-                  className="py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs transition"
-                >
-                  Cancel
-                </button>
+          {/* Col 4: Emergency Dispatch & Hospital Location */}
+          <div className="space-y-3">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-[#1E3A8A]">
+              Emergency Contact &amp; Hours
+            </h4>
+            <div className="p-3.5 rounded-2xl bg-red-50 border border-red-200 space-y-1">
+              <span className="text-[10px] uppercase font-bold text-red-700 block tracking-wider">
+                24x7 Ambulance &amp; Trauma
+              </span>
+              <a
+                href="tel:+919999108108"
+                className="text-base font-black text-red-800 hover:underline block font-mono"
+              >
+                +91 9999-108-108
+              </a>
+              <span className="text-[10px] text-red-600 block">Immediate Trauma Dispatch</span>
+            </div>
+
+            <div className="space-y-1 text-xs text-[#4B5563] pt-1">
+              <div className="flex items-start gap-2">
+                <MapPin className="w-3.5 h-3.5 text-[#0D9488] shrink-0 mt-0.5" />
+                <span>Central Health Boulevard, Jaipur, Rajasthan</span>
               </div>
-            </form>
+              <div className="flex items-start gap-2">
+                <Clock className="w-3.5 h-3.5 text-[#0D9488] shrink-0 mt-0.5" />
+                <span>OPD: 09:00 AM – 01:00 PM &amp; 05:00 PM – 08:00 PM</span>
+              </div>
+            </div>
           </div>
         </div>
-      )}
+
+        {/* Bottom Legal Copyright Bar */}
+        <div className="mt-12 pt-6 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-gray-500 text-center sm:text-left">
+          <p>© {new Date().getFullYear()} {hospitalName}. All clinical rights reserved.</p>
+          <div className="flex items-center gap-4">
+            <Link href="/login" className="hover:text-[#1E3A8A] transition text-gray-500">
+              Staff &amp; Patient Portal
+            </Link>
+            <span>•</span>
+            <Link href="/registration" className="hover:text-[#1E3A8A] transition text-gray-500">
+              Patient Registration
+            </Link>
+            <span>•</span>
+            <Link href="/emergency" className="hover:text-red-600 transition text-gray-500">
+              Emergency Bay
+            </Link>
+          </div>
+        </div>
+      </div>
     </footer>
   );
 }
