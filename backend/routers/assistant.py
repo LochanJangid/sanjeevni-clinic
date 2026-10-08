@@ -2,73 +2,66 @@ import logging
 import os
 import threading
 import time
-from typing import Literal
+import uuid
+from datetime import datetime, timezone
+from typing import List, Literal, Optional
 
 import httpx
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, Header, HTTPException, Request, status
 from pydantic import BaseModel, Field, field_validator
+
+from database.connection import Database
+from routers.users import authenticated_token_claims
 
 router = APIRouter(prefix="/assistant", tags=["assistant"])
 logger = logging.getLogger(__name__)
+db = Database()
 
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
 DEFAULT_MODEL = "llama-3.3-70b-versatile"
-RATE_LIMIT_REQUESTS = 12
+RATE_LIMIT_REQUESTS = 30
 RATE_LIMIT_WINDOW_SECONDS = 60
 _request_times: dict[str, list[float]] = {}
 _rate_limit_lock = threading.Lock()
 
-SYSTEM_INSTRUCTIONS = """You are the Sanjeevni Clinic website assistant.
-Help people navigate this website: finding listed doctors, checking displayed appointment slots,
-booking a visit, viewing appointment history, rescheduling or cancelling a visit, and updating
-their patient contact profile. Explain that actions must be completed by the patient in the site;
-never claim that you booked, changed, cancelled, or verified an appointment.
+SYSTEM_INSTRUCTIONS = """You are the official AI Clinical Health Assistant for Sanjeevni Super-Specialty Clinic & Hospital.
+Help patients navigate healthcare services: finding doctors, checking appointment availability, booking visits,
+viewing digital prescriptions, understanding lab tests, checking bed status, and hospital timings.
 
-You may answer general health-education questions in plain language, but do not diagnose,
-recommend a prescription, interpret an individual's test results, or replace a clinician.
-Encourage the person to contact a qualified healthcare professional for personal medical advice.
-For possible emergencies (including severe trouble breathing, chest pain, stroke symptoms,
-uncontrolled bleeding, or immediate danger), tell them to contact local emergency services or
-go to the nearest emergency department now.
+Clinical safety guidelines:
+1. For life-threatening emergencies (severe chest pain, breathing difficulty, stroke symptoms, unconsciousness, heavy trauma),
+   immediately advise calling Sanjeevni Trauma Hotline (+91 9999-108-108) or visiting the 24x7 Emergency Command Bay.
+2. Provide general health education in clear, empathetic language. Do not provide definitive diagnosis or prescribe controlled medication.
+3. Guide users to relevant hospital departments:
+   - Dr. Rajesh Sharma: MD, Chief Cardiologist (Fee: ₹800)
+   - Dr. Priya Verma: MD, Dermatologist & Cosmetologist (Fee: ₹650)
+   - Dr. Amit Gupta: MBBS, MD, General Medicine & Diabetology (Fee: ₹500)
+   - Dr. Anita Roy: DM, Neurologist (Fee: ₹900)
+   - Dr. Vikram Sethi: MD, Senior Pediatrician (Fee: ₹600)
+   - Dr. Meera Iyer: MS, Orthopedic Surgeon (Fee: ₹750)
+4. Hospital Timings: OPD Morning: 09:00 AM - 01:00 PM | Evening: 05:00 PM - 08:00 PM | Emergency & Trauma: 24 Hours Open.
+5. Location: Sanjeevni Medical Pavilion, Central Health Boulevard."""
 
-Do not invent clinic hours, doctor qualifications, services, prices, payment options, or policies.
-Use only facts provided in the conversation about the website. Do not ask for passwords,
-payment details, medical record numbers, or unnecessary sensitive health information. Ask a
-short clarifying question when it will help answer safely. Be warm, concise, and clear."""
 
-
-class ChatMessage(BaseModel):
+class LegacyChatMessage(BaseModel):
     role: Literal["user", "assistant"]
-    content: str = Field(min_length=1, max_length=1200)
-
-    @field_validator("content")
-    @classmethod
-    def require_non_blank_content(cls, content: str) -> str:
-        trimmed = content.strip()
-        if not trimmed:
-            raise ValueError("Message cannot be blank.")
-        return trimmed
+    content: str = Field(min_length=1, max_length=2000)
 
 
 class ChatRequest(BaseModel):
-    messages: list[ChatMessage] = Field(min_length=1, max_length=12)
-
-    @field_validator("messages")
-    @classmethod
-    def end_with_user_message(cls, messages: list[ChatMessage]) -> list[ChatMessage]:
-        if messages[-1].role != "user":
-            raise ValueError("The conversation must end with a user message.")
-        return messages
+    message: Optional[str] = None
+    messages: Optional[List[LegacyChatMessage]] = None
+    session_id: Optional[str] = None
+    conversation_id: Optional[int] = None
 
 
 def check_rate_limit(client_key: str) -> None:
     now = time.monotonic()
     cutoff = now - RATE_LIMIT_WINDOW_SECONDS
     with _rate_limit_lock:
-        if len(_request_times) > 2048:
+        if len(_request_times) > 4096:
             stale_keys = [
-                key
-                for key, stamps in _request_times.items()
+                key for key, stamps in _request_times.items()
                 if not any(stamp > cutoff for stamp in stamps)
             ]
             for key in stale_keys:
@@ -85,76 +78,357 @@ def check_rate_limit(client_key: str) -> None:
         _request_times[client_key] = active
 
 
+def get_intelligent_clinical_reply(user_text: str) -> str:
+    lower_msg = user_text.lower().strip()
+
+    # 1. Emergency Red-Flag Screening
+    emergency_keywords = ["chest pain", "heart attack", "can't breathe", "breathless", "unconscious", "stroke", "paralysis", "bleeding heavily", "suicide", "poison"]
+    if any(k in lower_msg for k in emergency_keywords):
+        return (
+            "🚨 **CRITICAL MEDICAL ALERT**: Your symptoms may indicate an acute medical emergency.\n\n"
+            "• Please call **Sanjeevni 24x7 Trauma Hotline: +91 9999-108-108** immediately.\n"
+            "• If in immediate danger, proceed directly to the **Emergency Command Center Bay** at Sanjeevni Hospital.\n"
+            "• Do not drive yourself. Have someone escort you or await ALS Ambulance dispatch."
+        )
+
+    # 2. Doctor Specialties & Recommendations
+    if any(k in lower_msg for k in ["heart", "cardio", "bp", "blood pressure", "palpitation"]):
+        return (
+            "❤️ **Cardiology Department**:\n"
+            "• **Dr. Rajesh Sharma, MD (Cardiology)** is available for consultation.\n"
+            "• Consultation Fee: **₹800** | Cabin 1.\n"
+            "• Timings: Mon–Sat 09:00 AM – 01:00 PM & 05:00 PM – 08:00 PM.\n"
+            "You can book an immediate 30-minute slot under the **'Find Care'** section."
+        )
+
+    if any(k in lower_msg for k in ["skin", "acne", "rash", "hair", "dermatol"]):
+        return (
+            "🌿 **Dermatology & Skin Care**:\n"
+            "• **Dr. Priya Verma, MD (Dermatology)** specializes in clinical dermatology and aesthetic care.\n"
+            "• Consultation Fee: **₹650** | Cabin 2.\n"
+            "• You can book a consultation slot in the **'Find Care'** directory."
+        )
+
+    if any(k in lower_msg for k in ["child", "baby", "kid", "pediatric", "fever child", "infant"]):
+        return (
+            "👶 **Pediatrics Department**:\n"
+            "• **Dr. Vikram Sethi, MD (Pediatrics)** treats infant care, childhood infections, and immunizations.\n"
+            "• Consultation Fee: **₹600** | Cabin 5.\n"
+            "• For baby vaccinations, visit the **'Vaccine Passport'** module for the complete UIP immunization schedule."
+        )
+
+    if any(k in lower_msg for k in ["bone", "joint", "fracture", "knee", "spine", "ortho"]):
+        return (
+            "🦴 **Orthopedics & Joint Care**:\n"
+            "• **Dr. Meera Iyer, MS (Orthopedics)** specializes in joint trauma, spine health, and arthroscopy.\n"
+            "• Consultation Fee: **₹750** | Cabin 6."
+        )
+
+    if any(k in lower_msg for k in ["fever", "cough", "cold", "general", "diabetes", "sugar"]):
+        return (
+            "🩺 **General Medicine & Diabetology**:\n"
+            "• **Dr. Amit Gupta, MD (General Medicine)** provides expert comprehensive medical consultations.\n"
+            "• Consultation Fee: **₹500** | Cabin 3.\n"
+            "• Timings: 09:00 AM – 01:00 PM & 05:00 PM – 08:00 PM."
+        )
+
+    # 3. Booking Appointments
+    if any(k in lower_msg for k in ["book", "appointment", "slot", "schedule", "timing", "hours"]):
+        return (
+            "📅 **How to Book at Sanjeevni Clinic**:\n"
+            "1. Click on **'Find Care / Doctors'** in the navigation bar.\n"
+            "2. Select your specialist and choose an available consultation date.\n"
+            "3. Pick an open **30-minute consultation slot**.\n"
+            "4. Complete confirmation via PhonePe Dynamic UPI QR or pay at the clinic reception counter."
+        )
+
+    # 4. Prescriptions & Lab Reports
+    if any(k in lower_msg for k in ["prescription", "rx", "medicine", "pharmacy"]):
+        return (
+            "💊 **Digital Prescriptions (Rx) & Pharmacy**:\n"
+            "• Following every doctor visit, an authorized digital prescription is instantly posted to your **'Health Records / Prescriptions'** tab.\n"
+            "• You can download the PDF or show the digital seal directly at the Sanjeevni Central Pharmacy for batch-verified dispensation."
+        )
+
+    if any(k in lower_msg for k in ["lab", "blood test", "report", "pathology", "test result"]):
+        return (
+            "🔬 **Diagnostic Pathology & Lab Reports**:\n"
+            "• Access your complete lab history under **'Diagnostic Lab Reports'**.\n"
+            "• Tests include CBC, Lipid Profile, HbA1c, Thyroid, Renal function, and Liver panels.\n"
+            "• Any critical abnormal values are automatically highlighted with clinical alerts."
+        )
+
+    # 5. Beds & Inpatient
+    if any(k in lower_msg for k in ["bed", "icu", "admit", "admission", "ward", "ipd"]):
+        return (
+            "🛏️ **Inpatient Bed Availability (IPD)**:\n"
+            "• Sanjeevni Pavilion maintains 20 monitored beds across ICU, Semi-Private, and General Wards.\n"
+            "• Check real-time ward telemetry and oxygen status under the **'Hospital Bed Census'** section."
+        )
+
+    # 6. Billing & Payments
+    if any(k in lower_msg for k in ["bill", "fee", "cost", "phonepe", "upi", "gst", "receipt"]):
+        return (
+            "💳 **Billing & Payment Clearance**:\n"
+            "• Consultation fees range between **₹500 and ₹900**.\n"
+            "• Payments are settled via **PhonePe Dynamic Merchant QR**, UPI, Debit/Credit Cards, or cash counter.\n"
+            "• Instant official GST-exempt receipts (SJ-REC) are generated per Entry 74 Notification 12/2017-CT(R)."
+        )
+
+    # Default Greeting / Clinical Orientation
+    return (
+        "Welcome to **Sanjeevni Clinic AI Health Assistant**!\n\n"
+        "I can help you with:\n"
+        "• Finding specialist doctors and checking availability\n"
+        "• Booking an OPD consultation slot\n"
+        "• Accessing your digital prescriptions & lab reports\n"
+        "• Checking bed occupancy and emergency services\n\n"
+        "How may I assist your health journey today?"
+    )
+
+
 @router.post("/chat")
-async def chat(request: Request, payload: ChatRequest):
+async def chat(
+    request: Request,
+    payload: ChatRequest,
+    authorization: str | None = Header(default=None, alias="Authorization"),
+):
     check_rate_limit(request.client.host if request.client else "unknown")
 
-    api_key = os.getenv("GROQ_API_KEY")
-    if not api_key:
-        last_msg = payload.messages[-1].content.lower()
-        if "doctor" in last_msg or "specialist" in last_msg or "team" in last_msg:
-            return {"reply": "Sanjeevni Clinic features experienced specialists across Cardiology (Dr. Rajesh Sharma), Dermatology (Dr. Priya Verma), General Medicine (Dr. Amit Gupta), Neurology (Dr. Anita Roy), Pediatrics (Dr. Vikram Sethi), and Orthopedics (Dr. Meera Iyer). You can explore their profiles and consultation fees on the 'Find care' page."}
-        if "book" in last_msg or "slot" in last_msg or "time" in last_msg or "appointment" in last_msg:
-            return {"reply": "To book an appointment, head to the 'Find care' tab, choose your specialist doctor, and click 'Choose a time'. Select a suitable calendar date to view all open 30-minute consultation slots."}
-        if "fee" in last_msg or "cost" in last_msg or "price" in last_msg or "pay" in last_msg or "bill" in last_msg:
-            return {"reply": "Doctor consultation fees range between ₹500 and ₹900 depending on the specialty. We support digital payments (UPI, Credit/Debit cards) as well as cash payments at the clinic front desk."}
-        if "prescription" in last_msg or "medicine" in last_msg or "rx" in last_msg:
-            return {"reply": "Once a doctor completes your consultation, your official digital prescription (Rx) with medicine dosages, schedules, and clinical guidance will be instantly available under 'My Health Records / Prescriptions'."}
-        return {"reply": "Welcome to Sanjeevni Clinic! I can help guide you through booking appointments, viewing doctor schedules, reviewing digital prescriptions, or clinic policies. How may I help you today?"}
+    # Extract user message
+    user_message = ""
+    if payload.message and payload.message.strip():
+        user_message = payload.message.strip()
+    elif payload.messages and len(payload.messages) > 0:
+        user_message = payload.messages[-1].content.strip()
 
-    model = os.getenv("GROQ_MODEL", DEFAULT_MODEL)
-    messages = [
-        {"role": "system", "content": SYSTEM_INSTRUCTIONS},
-        *[message.model_dump() for message in payload.messages],
+    if not user_message:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Message content cannot be blank.",
+        )
+
+    # Resolve User ID if logged in
+    user_id = None
+    if authorization:
+        try:
+            claims = authenticated_token_claims(authorization)
+            user_id = claims.get("id")
+        except Exception:
+            pass
+
+    # Resolve or generate Session ID (indexed for scale)
+    session_id = payload.session_id or f"sess_{uuid.uuid4().hex[:16]}"
+    conversation_id = payload.conversation_id
+
+    # 1. Get or create conversation in DB
+    try:
+        if conversation_id:
+            conv = db.query(
+                "SELECT id FROM chat_conversations WHERE id = %s",
+                (conversation_id,),
+                decision="fetchone",
+            )
+            if not conv:
+                conversation_id = None
+
+        if not conversation_id:
+            # Check if open conversation exists for user_id or session_id
+            if user_id:
+                conv = db.query(
+                    """
+                    SELECT id FROM chat_conversations
+                    WHERE user_id = %s
+                    ORDER BY updated_at DESC LIMIT 1
+                    """,
+                    (user_id,),
+                    decision="fetchone",
+                )
+            else:
+                conv = db.query(
+                    """
+                    SELECT id FROM chat_conversations
+                    WHERE session_id = %s
+                    ORDER BY updated_at DESC LIMIT 1
+                    """,
+                    (session_id,),
+                    decision="fetchone",
+                )
+
+            if conv:
+                conversation_id = conv["id"]
+            else:
+                # Insert new conversation
+                new_conv = db.query(
+                    """
+                    INSERT INTO chat_conversations (user_id, session_id, title)
+                    VALUES (%s, %s, %s)
+                    RETURNING id
+                    """,
+                    (user_id, session_id, user_message[:60]),
+                    decision="fetchone",
+                )
+                conversation_id = new_conv["id"] if new_conv else 1
+
+        # 2. Store user message in DB
+        db.query(
+            """
+            INSERT INTO chat_messages (conversation_id, sender, message)
+            VALUES (%s, 'user', %s)
+            """,
+            (conversation_id, user_message),
+        )
+    except Exception as e:
+        logger.error(f"Failed to persist user chat message: {e}")
+
+    # 3. Generate response: Try Groq API or fallback to Clinical Intelligence Engine
+    reply = ""
+    api_key = os.getenv("GROQ_API_KEY")
+    if api_key:
+        try:
+            model = os.getenv("GROQ_MODEL", DEFAULT_MODEL)
+            async with httpx.AsyncClient(timeout=httpx.Timeout(15.0, connect=4.0)) as client:
+                res = await client.post(
+                    GROQ_API_URL,
+                    headers={"Authorization": f"Bearer {api_key}"},
+                    json={
+                        "model": model,
+                        "messages": [
+                            {"role": "system", "content": SYSTEM_INSTRUCTIONS},
+                            {"role": "user", "content": user_message},
+                        ],
+                        "temperature": 0.3,
+                        "max_tokens": 500,
+                    },
+                )
+                if res.status_code == 200:
+                    data = res.json()
+                    candidate = data["choices"][0]["message"]["content"]
+                    if candidate and candidate.strip():
+                        reply = candidate.strip()
+        except Exception as exc:
+            logger.warning(f"Groq API call failed, using clinical fallback: {exc}")
+
+    if not reply:
+        reply = get_intelligent_clinical_reply(user_message)
+
+    # 4. Store bot response in DB
+    msg_id = None
+    try:
+        bot_msg = db.query(
+            """
+            INSERT INTO chat_messages (conversation_id, sender, message)
+            VALUES (%s, 'bot', %s)
+            RETURNING id
+            """,
+            (conversation_id, reply),
+            decision="fetchone",
+        )
+        msg_id = bot_msg["id"] if bot_msg else None
+
+        db.query(
+            "UPDATE chat_conversations SET updated_at = NOW() WHERE id = %s",
+            (conversation_id,),
+        )
+    except Exception as e:
+        logger.error(f"Failed to persist bot chat reply: {e}")
+
+    return {
+        "reply": reply,
+        "conversation_id": conversation_id,
+        "session_id": session_id,
+        "message_id": msg_id,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+@router.get("/history")
+def get_chat_history(
+    session_id: Optional[str] = None,
+    conversation_id: Optional[int] = None,
+    authorization: str | None = Header(default=None, alias="Authorization"),
+):
+    user_id = None
+    if authorization:
+        try:
+            claims = authenticated_token_claims(authorization)
+            user_id = claims.get("id")
+        except Exception:
+            pass
+
+    target_conv_id = conversation_id
+    if not target_conv_id:
+        if user_id:
+            conv = db.query(
+                "SELECT id FROM chat_conversations WHERE user_id = %s ORDER BY updated_at DESC LIMIT 1",
+                (user_id,),
+                decision="fetchone",
+            )
+            target_conv_id = conv["id"] if conv else None
+        elif session_id:
+            conv = db.query(
+                "SELECT id FROM chat_conversations WHERE session_id = %s ORDER BY updated_at DESC LIMIT 1",
+                (session_id,),
+                decision="fetchone",
+            )
+            target_conv_id = conv["id"] if conv else None
+
+    if not target_conv_id:
+        return {"conversation_id": None, "messages": []}
+
+    messages = db.query(
+        """
+        SELECT id, sender, message, timestamp
+        FROM chat_messages
+        WHERE conversation_id = %s
+        ORDER BY timestamp ASC
+        LIMIT 200
+        """,
+        (target_conv_id,),
+        decision="fetchall",
+    ) or []
+
+    formatted_messages = [
+        {
+            "id": m["id"],
+            "role": "assistant" if m["sender"] == "bot" else "user",
+            "sender": m["sender"],
+            "content": m["message"],
+            "timestamp": m["timestamp"].isoformat() if hasattr(m["timestamp"], "isoformat") else str(m["timestamp"]),
+        }
+        for m in messages
     ]
 
-    try:
-        async with httpx.AsyncClient(
-            timeout=httpx.Timeout(25.0, connect=5.0),
-        ) as client:
-            response = await client.post(
-                GROQ_API_URL,
-                headers={"Authorization": f"Bearer {api_key}"},
-                json={
-                    "model": model,
-                    "messages": messages,
-                    "temperature": 0.3,
-                    "max_tokens": 500,
-                },
-            )
-        response.raise_for_status()
-        response_data = response.json()
-        reply = response_data["choices"][0]["message"]["content"]
-        if not isinstance(reply, str) or not reply.strip():
-            raise ValueError("The assistant returned an empty message.")
-    except httpx.TimeoutException as exc:
-        logger.warning("Groq assistant request timed out")
-        raise HTTPException(
-            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
-            detail="The assistant is taking too long to respond. Please try again.",
-        ) from exc
-    except httpx.HTTPStatusError as exc:
-        remote_status = exc.response.status_code
-        logger.warning("Groq assistant request failed with status %s", remote_status)
-        if remote_status == 429:
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="The assistant is busy right now. Please try again shortly.",
-            ) from exc
-        if remote_status in (401, 403):
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="The clinic assistant is not available. Please contact the clinic for help.",
-            ) from exc
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="The assistant could not respond just now. Please try again.",
-        ) from exc
-    except (httpx.RequestError, KeyError, IndexError, TypeError, ValueError) as exc:
-        logger.warning("Groq assistant request could not be completed: %s", type(exc).__name__)
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="The assistant could not respond just now. Please try again.",
-        ) from exc
+    return {
+        "conversation_id": target_conv_id,
+        "session_id": session_id,
+        "messages": formatted_messages,
+    }
 
-    return {"reply": reply.strip()}
+
+@router.delete("/history")
+def clear_chat_history(
+    session_id: Optional[str] = None,
+    conversation_id: Optional[int] = None,
+    authorization: str | None = Header(default=None, alias="Authorization"),
+):
+    user_id = None
+    if authorization:
+        try:
+            claims = authenticated_token_claims(authorization)
+            user_id = claims.get("id")
+        except Exception:
+            pass
+
+    deleted_count = 0
+    if conversation_id:
+        deleted = db.query("DELETE FROM chat_conversations WHERE id = %s RETURNING id", (conversation_id,), decision="fetchall")
+        deleted_count = len(deleted) if deleted else 0
+    elif user_id:
+        deleted = db.query("DELETE FROM chat_conversations WHERE user_id = %s RETURNING id", (user_id,), decision="fetchall")
+        deleted_count = len(deleted) if deleted else 0
+    elif session_id:
+        deleted = db.query("DELETE FROM chat_conversations WHERE session_id = %s RETURNING id", (session_id,), decision="fetchall")
+        deleted_count = len(deleted) if deleted else 0
+
+    return {"status": "success", "message": "Conversation history cleared successfully.", "deleted_conversations": deleted_count}

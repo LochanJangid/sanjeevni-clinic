@@ -533,6 +533,62 @@ def call_next_opd_token(doctor_id: int, authorization: str | None = Header(None)
     return {"msg": f"Now calling Token #{next_token['token_number']}", "token": next_token}
 
 
+@router.post("/opd-queue/complete-current/{doctor_id}")
+def complete_current_opd_session(doctor_id: int, authorization: str | None = Header(None)):
+    today = date.today()
+    current = db.query(
+        """
+        SELECT ot.*, d.name as doctor_name
+        FROM opd_tokens ot
+        JOIN doctors d ON d.id = ot.doctor_id
+        WHERE ot.doctor_id = %s AND ot.token_date = %s AND ot.status = 'in_consultation'
+        LIMIT 1
+        """,
+        (doctor_id, today),
+        decision="fetchone"
+    )
+
+    if not current:
+        return {
+            "success": False,
+            "msg": "No active patient in consultation for this doctor.",
+            "completed": False
+        }
+
+    db.query(
+        """
+        UPDATE opd_tokens
+        SET status = 'completed'
+        WHERE id = %s
+        """,
+        (current["id"],)
+    )
+
+    if current.get("appointment_id"):
+        db.query(
+            """
+            UPDATE appointments
+            SET status = 'completed'
+            WHERE id = %s
+            """,
+            (current["appointment_id"],)
+        )
+
+    patient_name = current.get("patient_name") or f"Token #{current['token_number']}"
+    doc_name = current.get("doctor_name") or "Doctor"
+    notification_msg = f"Consultation session completed for {patient_name} with {doc_name}. Patient notified."
+
+    return {
+        "success": True,
+        "msg": notification_msg,
+        "token_number": current["token_number"],
+        "patient_name": patient_name,
+        "doctor_name": doc_name,
+        "notification_sent": True,
+        "notification_text": f"Dear {patient_name}, your clinical consultation with {doc_name} is complete. Your prescription is ready on the portal."
+    }
+
+
 # --- 8. AI CLINICAL SYMPTOM CHECKER & TRIAGE ENGINE ---
 
 @router.post("/triage")

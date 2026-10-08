@@ -89,21 +89,134 @@ def user_registration(user: UserRegistration):
     return {"msg": "Account created successfully", "user": new_user}
 
 
-@router.post("/user_login/")
-def user_login(user: UserLogin):
+class DoctorKeyLogin(BaseModel):
+    doctor_key: str = Field(min_length=3, max_length=64)
+
+
+@router.post("/doctor_key_login/")
+def doctor_key_login(payload: DoctorKeyLogin):
+    cleaned_key = payload.doctor_key.strip().upper()
     cur_user = db.query(
         """
-        SELECT id, username, email, mobile, password_hash, COALESCE(role, 'patient') as role, doctor_id
-        FROM users
-        WHERE username = %s
+        SELECT u.id, u.username, u.email, u.mobile, u.role, u.doctor_id, u.doctor_key,
+               d.name as doctor_name
+        FROM users u
+        LEFT JOIN doctors d ON u.doctor_id = d.id
+        WHERE UPPER(u.doctor_key) = %s OR UPPER(d.doctor_key) = %s
+        LIMIT 1
         """,
-        (user.username.strip(),),
+        (cleaned_key, cleaned_key),
     )
 
-    if cur_user is None or not bcrypt.checkpw(
-        user.password.encode("utf-8"),
-        cur_user["password_hash"].encode("utf-8"),
-    ):
+    if not cur_user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid Doctor Access Key. Please verify the key provided by Sanjeevni Clinic administration.",
+        )
+
+    if not SECRET_KEY:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Authentication is not configured on this server.",
+        )
+
+    access_token = jwt.encode(
+        {
+            "sub": str(cur_user["id"]),
+            "username": cur_user.get("doctor_name") or cur_user["username"],
+            "role": "doctor",
+            "doctor_id": cur_user.get("doctor_id"),
+            "exp": datetime.now(timezone.utc) + timedelta(hours=24),
+        },
+        SECRET_KEY,
+        algorithm=ALGORITHM,
+    )
+
+    return {
+        "msg": "Doctor key authentication successful",
+        "username": cur_user.get("doctor_name") or cur_user["username"],
+        "is_exists": True,
+        "auth_success": True,
+        "user": {
+            "id": cur_user["id"],
+            "username": cur_user.get("doctor_name") or cur_user["username"],
+            "email": cur_user["email"],
+            "mobile": cur_user["mobile"],
+            "role": "doctor",
+            "doctor_id": cur_user.get("doctor_id"),
+        },
+        "access_token": access_token,
+    }
+
+
+@router.post("/user_login/")
+def user_login(user: UserLogin):
+    search_term = user.username.strip()
+    
+    # 1. First check if search_term is a Doctor Key
+    if search_term.upper().startswith("DOC-") or search_term.upper().startswith("DR-"):
+        cur_user = db.query(
+            """
+            SELECT u.id, u.username, u.email, u.mobile, u.password_hash, u.role, u.doctor_id, u.doctor_key,
+                   d.name as doctor_name
+            FROM users u
+            LEFT JOIN doctors d ON u.doctor_id = d.id
+            WHERE UPPER(u.doctor_key) = %s OR UPPER(d.doctor_key) = %s
+            LIMIT 1
+            """,
+            (search_term.upper(), search_term.upper()),
+        )
+        if cur_user:
+            access_token = jwt.encode(
+                {
+                    "sub": str(cur_user["id"]),
+                    "username": cur_user.get("doctor_name") or cur_user["username"],
+                    "role": "doctor",
+                    "doctor_id": cur_user.get("doctor_id"),
+                    "exp": datetime.now(timezone.utc) + timedelta(hours=24),
+                },
+                SECRET_KEY,
+                algorithm=ALGORITHM,
+            )
+            return {
+                "msg": "Doctor key login successful",
+                "username": cur_user.get("doctor_name") or cur_user["username"],
+                "is_exists": True,
+                "auth_success": True,
+                "user": {
+                    "id": cur_user["id"],
+                    "username": cur_user.get("doctor_name") or cur_user["username"],
+                    "email": cur_user["email"],
+                    "mobile": cur_user["mobile"],
+                    "role": "doctor",
+                    "doctor_id": cur_user.get("doctor_id"),
+                },
+                "access_token": access_token,
+            }
+
+    # 2. Check by username or email
+    cur_user = db.query(
+        """
+        SELECT id, username, email, mobile, password_hash, COALESCE(role, 'patient') as role, doctor_id, doctor_key
+        FROM users
+        WHERE LOWER(username) = LOWER(%s) OR LOWER(email) = LOWER(%s)
+        LIMIT 1
+        """,
+        (search_term, search_term),
+    )
+
+    # 3. Check password verification or doctor key as password
+    is_password_valid = False
+    if cur_user:
+        if cur_user.get("password_hash") and bcrypt.checkpw(
+            user.password.encode("utf-8"),
+            cur_user["password_hash"].encode("utf-8"),
+        ):
+            is_password_valid = True
+        elif cur_user.get("doctor_key") and user.password.strip().upper() == cur_user["doctor_key"].upper():
+            is_password_valid = True
+
+    if cur_user is None or not is_password_valid:
         return {
             "msg": "Invalid username or password.",
             "username": user.username,

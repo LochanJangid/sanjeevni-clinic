@@ -84,8 +84,7 @@ def lock_doctor_day(cursor, doctor_id: int, slot_date: date) -> None:
 
 
 def find_conflict(cursor, doctor_id: int, slot_date: date, slot_time: time, exclude_id: int | None = None):
-    cursor.execute(
-        """
+    query = """
         SELECT id
         FROM appointments
         WHERE doctor_id = %s
@@ -93,18 +92,13 @@ def find_conflict(cursor, doctor_id: int, slot_date: date, slot_time: time, excl
           AND appointment_time < %s + INTERVAL '30 minutes'
           AND appointment_time + INTERVAL '30 minutes' > %s
           AND status IS DISTINCT FROM 'cancelled'
-          AND (%s IS NULL OR id <> %s)
-        LIMIT 1
-        """,
-        (
-            doctor_id,
-            slot_date,
-            slot_time,
-            slot_time,
-            exclude_id,
-            exclude_id,
-        ),
-    )
+    """
+    params = [doctor_id, slot_date, slot_time, slot_time]
+    if exclude_id is not None:
+        query += " AND id <> %s"
+        params.append(exclude_id)
+    query += " LIMIT 1"
+    cursor.execute(query, tuple(params))
     return cursor.fetchone()
 
 

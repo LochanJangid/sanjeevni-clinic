@@ -13,11 +13,16 @@ router = APIRouter(prefix="/billing", tags=["billing"])
 db = Database()
 
 
-# Payment Provider Abstraction (Hard Rule 2: Merchant Payment Gateway & Cashier Desk)
+ADMIN_PAYMENT_PHONE = "7240499165"
+ADMIN_PAYMENT_UPI = "7240499165@upi"
+ADMIN_PAYMENT_NAME = "Sanjeevni Hospital Admin"
+
+# Payment Provider Abstraction (Admin Payment Gateway & Cashier Desk)
 HOSPITAL_MERCHANT_CONFIG = {
-    "merchant_id": "HOSPITAL_PHONEPE_MERCHANT_JAIPUR",
-    "merchant_name": "Hospital Billing & Accounts Desk",
-    "merchant_upi": "hospital.billing@ybl",
+    "merchant_id": "SANJEEVNI_ADMIN_7240499165",
+    "merchant_name": ADMIN_PAYMENT_NAME,
+    "merchant_upi": ADMIN_PAYMENT_UPI,
+    "admin_phone": ADMIN_PAYMENT_PHONE,
     "consultation_gst_exempt": True,
     "gst_exemption_clause": "Entry 74 of Notification No. 12/2017-Central Tax (Rate)",
 }
@@ -256,7 +261,8 @@ def get_phonepe_details(
         "specialty": appt.get("category_name") or "Specialist",
         "merchant_name": merchant_name,
         "merchant_upi": merchant_vpa,
-        "doctor_mobile": appt.get("patient_mobile") or "Desk",
+        "admin_mobile": ADMIN_PAYMENT_PHONE,
+        "doctor_mobile": ADMIN_PAYMENT_PHONE,
         "doctor_upi": merchant_vpa,  # Kept for backward compatibility with tests
         "amount": amount,
         "patient_name": appt["patient_name"],

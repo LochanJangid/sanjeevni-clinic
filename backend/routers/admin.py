@@ -2,7 +2,7 @@ from datetime import date
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Header, Query, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from database.connection import Database
 from routers.users import authenticated_token_claims
@@ -58,7 +58,29 @@ def get_all_appointments(
     if claims.get("role") == "doctor":
         effective_doctor_id = claims.get("doctor_id")
 
-    sql = """
+    conditions = []
+    params = []
+
+    if status_filter:
+        conditions.append("a.status = %s")
+        params.append(status_filter)
+
+    if date_filter:
+        conditions.append("a.appointment_date = %s")
+        params.append(date_filter)
+
+    if effective_doctor_id is not None:
+        conditions.append("a.doctor_id = %s")
+        params.append(effective_doctor_id)
+
+    if search and search.strip():
+        search_param = f"%{search.strip()}%"
+        conditions.append("(u.username ILIKE %s OR d.name ILIKE %s)")
+        params.extend([search_param, search_param])
+
+    where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+
+    sql = f"""
         SELECT
             a.id,
             a.user_id,
@@ -80,24 +102,11 @@ def get_all_appointments(
         JOIN doctors d ON a.doctor_id = d.id
         LEFT JOIN categories c ON d.category_id = c.id
         LEFT JOIN payments p ON p.appointment_id = a.id
-        WHERE (%s IS NULL OR a.status = %s)
-          AND (%s IS NULL OR a.appointment_date = %s)
-          AND (%s IS NULL OR a.doctor_id = %s)
-          AND (%s IS NULL OR u.username ILIKE %s OR d.name ILIKE %s)
+        {where_clause}
         ORDER BY a.appointment_date DESC, a.appointment_time DESC
     """
-    search_param = f"%{search.strip()}%" if search and search.strip() else None
 
-    return db.query(
-        sql,
-        (
-            status_filter, status_filter,
-            date_filter, date_filter,
-            effective_doctor_id, effective_doctor_id,
-            search_param, search_param, search_param,
-        ),
-        decision="fetchall",
-    )
+    return db.query(sql, tuple(params) if params else None, decision="fetchall")
 
 
 ## UPDATE APPOINTMENT STATUS (CHECK-IN / COMPLETE) ----------
@@ -268,4 +277,117 @@ def import_medicines_csv(
         "message": f"Successfully imported {imported_count} medicines into pharmacy stock.",
         "imported_count": imported_count
     }
+
+
+# ==========================================
+# DOCTOR APPOINTMENT & ACCESS KEY MANAGEMENT
+# ==========================================
+import random
+import string
+import bcrypt
+
+
+class AppointDoctorRequest(BaseModel):
+    name: str = Field(min_length=2, max_length=120)
+    category_id: int
+    fees: int = Field(gt=0)
+    qualification: Optional[str] = "Specialist Consultant"
+    experience_years: Optional[int] = 5
+    about: Optional[str] = "Consultant Physician at Sanjeevni Clinic"
+    clinic_address: Optional[str] = "Cabin 1, Sanjeevni Clinic"
+    custom_doctor_key: Optional[str] = None
+
+
+@router.post("/appoint-doctor")
+def appoint_doctor(
+    payload: AppointDoctorRequest,
+    authorization: str | None = Header(default=None, alias="Authorization"),
+):
+    claims = authenticated_token_claims(authorization)
+    if claims.get("role") != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only Hospital Admin can appoint doctors.")
+
+    # Generate or format doctor key
+    if payload.custom_doctor_key and payload.custom_doctor_key.strip():
+        doctor_key = payload.custom_doctor_key.strip().upper()
+    else:
+        clean_name = payload.name.upper().replace("DR.", "").replace("DR ", "").replace(" ", "")[:6]
+        rand_suffix = "".join(random.choices(string.digits, k=4))
+        doctor_key = f"DOC-{clean_name}-{rand_suffix}"
+
+    with db.get_connection() as conn:
+        with conn.cursor() as cur:
+            # 1. Insert into doctors
+            cur.execute("""
+                INSERT INTO doctors (name, category_id, fees, doctor_key)
+                VALUES (%s, %s, %s, %s)
+                RETURNING id;
+            """, (payload.name.strip(), payload.category_id, payload.fees, doctor_key))
+            doctor_id = cur.fetchone()[0]
+
+            # 2. Insert into doctor_profiles
+            cur.execute("""
+                INSERT INTO doctor_profiles (doctor_id, qualification, experience_years, about, clinic_address)
+                VALUES (%s, %s, %s, %s, %s);
+            """, (doctor_id, payload.qualification, payload.experience_years, payload.about, payload.clinic_address))
+
+            # 3. Create user account for doctor
+            clean_username = "dr." + payload.name.lower().replace("dr. ", "").replace("dr.", "").replace(" ", "").strip()
+            cur.execute("SELECT id FROM users WHERE username = %s", (clean_username,))
+            if cur.fetchone():
+                clean_username = f"{clean_username}{random.randint(10, 99)}"
+            
+            pwd_hash = bcrypt.hashpw(doctor_key.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+            cur.execute("""
+                INSERT INTO users (username, email, password_hash, role, doctor_id, doctor_key)
+                VALUES (%s, %s, %s, 'doctor', %s, %s)
+                RETURNING id;
+            """, (clean_username, f"{clean_username}@sanjeevni.com", pwd_hash, doctor_id, doctor_key))
+            user_id = cur.fetchone()[0]
+
+            # 4. Insert default availability slots (Mon-Sat 09:00 - 13:00, 17:00 - 20:00)
+            for day in range(1, 7):
+                cur.execute("""
+                    INSERT INTO doctor_availability (doctor_id, day_of_week, start_time, end_time)
+                    VALUES (%s, %s, '09:00', '13:00'), (%s, %s, '17:00', '20:00');
+                """, (doctor_id, day, doctor_id, day))
+
+            conn.commit()
+
+    return {
+        "status": "success",
+        "message": f"{payload.name} appointed successfully.",
+        "doctor": {
+            "id": doctor_id,
+            "name": payload.name,
+            "category_id": payload.category_id,
+            "fees": payload.fees,
+            "doctor_key": doctor_key,
+            "username": clean_username,
+        }
+    }
+
+
+@router.get("/doctors-with-keys")
+def get_doctors_with_keys(
+    authorization: str | None = Header(default=None, alias="Authorization"),
+):
+    claims = authenticated_token_claims(authorization)
+    if claims.get("role") != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin privileges required.")
+
+    return db.query("""
+        SELECT d.id, d.name, d.fees, d.doctor_key,
+               COALESCE(c.category_name, 'General') as category_name,
+               COALESCE(dp.qualification, 'Specialist') as qualification,
+               COALESCE(dp.experience_years, 5) as experience_years,
+               COALESCE(u.username, '') as username,
+               (SELECT COUNT(*) FROM appointments a WHERE a.doctor_id = d.id) as total_appointments
+        FROM doctors d
+        LEFT JOIN categories c ON d.category_id = c.id
+        LEFT JOIN doctor_profiles dp ON d.id = dp.doctor_id
+        LEFT JOIN users u ON u.doctor_id = d.id
+        ORDER BY d.id DESC;
+    """, decision="fetchall")
+
 
