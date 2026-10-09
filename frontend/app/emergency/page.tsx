@@ -240,14 +240,14 @@ export default function EmergencyPage() {
               {data?.clinic_location.name || "Sanjeevni Super-Specialty Medical Pavilion"}
             </strong>
             <p className="text-xs text-[#4B5563] max-w-xl">
-              {data?.clinic_location.address || "Plot 42, Healthcare Boulevard, Metro Sector 18, New Delhi"}
+              {data?.clinic_location.address || "Plot7, chumantar gali, jaipur, Rajsthan"}
             </p>
           </div>
 
           <div className="text-left sm:text-right p-4 rounded-2xl bg-slate-50 border border-gray-200">
             <span className="text-[11px] text-gray-400 font-semibold block">GPS DISPATCH COORDINATES</span>
             <span className="text-base font-mono text-[#0D9488] font-bold">
-              {data?.clinic_location.gps_coordinates || "28.5355° N, 77.3910° E"}
+              {data?.clinic_location.gps_coordinates || "26.9124° N, 75.7873° E"}
             </span>
           </div>
         </div>
