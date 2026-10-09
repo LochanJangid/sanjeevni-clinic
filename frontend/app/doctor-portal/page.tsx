@@ -113,7 +113,7 @@ export default function DoctorPortalPage() {
   const [doctorId, setDoctorId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [hospitalName, setHospitalName] = useState("Sanjeevni Medical Pavilion");
+  const [hospitalName, setHospitalName] = useState("Sanjeevni");
 
   useEffect(() => {
     setHospitalName(getStoredHospitalName());

@@ -525,7 +525,7 @@ export default function SanjeevniClinicHomePage() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-50 border border-blue-200 text-[#1E3A8A] text-xs font-bold uppercase tracking-wider mb-8">
               <Building2 className="w-3.5 h-3.5 text-[#1E3A8A]" />
-              <span>Sanjeevni Super-Specialty Medical Pavilion · Registered Clinic</span>
+              <span>Sanjeevni · Registered Clinic · chumantar gali jaipur</span>
             </div>
 
             <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black tracking-tight text-[#1E3A8A] max-w-5xl mx-auto leading-tight">
@@ -533,7 +533,7 @@ export default function SanjeevniClinicHomePage() {
             </h1>
 
             <p className="mt-6 text-base sm:text-xl text-[#4B5563] max-w-3xl mx-auto leading-relaxed">
-              Welcome to Sanjeevni Clinic. Offering expert multi-specialty physician chambers, live OPD token queues, 24/7 emergency trauma care, in-house digital prescriptions, and automated laboratory diagnostics.
+              Welcome to Sanjeevni, chumantar gali jaipur. Offering expert multi-specialty physician chambers, live OPD token queues, 24/7 emergency trauma care, in-house digital prescriptions, and automated laboratory diagnostics.
             </p>
 
             {/* Guest Primary Action Buttons */}

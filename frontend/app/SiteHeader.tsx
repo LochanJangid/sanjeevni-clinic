@@ -63,8 +63,8 @@ export default function SiteHeader() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [branding, setBranding] = useState<HospitalBranding>({
-    name: "Sanjeevni Hospital",
-    city: "Jaipur",
+    name: "Sanjeevni",
+    city: "chumantar gali jaipur",
     logo: "✚",
     logoType: "icon",
     regNumber: "CEA-RJ-2024-8842",

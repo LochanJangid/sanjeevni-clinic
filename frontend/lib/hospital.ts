@@ -1,12 +1,14 @@
 "use client";
 
-export const DEFAULT_HOSPITAL_NAME = "Sanjeevni Hospital";
-export const DEFAULT_HOSPITAL_CITY = "Jaipur";
+export const DEFAULT_HOSPITAL_NAME = "Sanjeevni";
+export const DEFAULT_HOSPITAL_CITY = "chumantar gali jaipur";
+export const DEFAULT_HOSPITAL_ADDRESS = "chumantar gali jaipur";
 export const DEFAULT_HOSPITAL_LOGO = "✚";
 
 export interface HospitalBranding {
   name: string;
   city: string;
+  address?: string;
   logo: string;
   logoType: "icon" | "image";
   regNumber: string;
@@ -35,6 +37,7 @@ export function getStoredHospitalBranding(): HospitalBranding {
     return {
       name: DEFAULT_HOSPITAL_NAME,
       city: DEFAULT_HOSPITAL_CITY,
+      address: DEFAULT_HOSPITAL_ADDRESS,
       logo: DEFAULT_HOSPITAL_LOGO,
       logoType: "icon",
       regNumber: "CEA-RJ-2024-8842",
@@ -45,9 +48,10 @@ export function getStoredHospitalBranding(): HospitalBranding {
   const logo = localStorage.getItem("custom_hospital_logo") || DEFAULT_HOSPITAL_LOGO;
   const logoType = (localStorage.getItem("custom_hospital_logo_type") as "icon" | "image") || "icon";
   const city = localStorage.getItem("custom_hospital_city") || DEFAULT_HOSPITAL_CITY;
+  const address = localStorage.getItem("custom_hospital_address") || DEFAULT_HOSPITAL_ADDRESS;
   const regNumber = localStorage.getItem("custom_hospital_reg") || "CEA-RJ-2024-8842";
 
-  return { name, city, logo, logoType, regNumber };
+  return { name, city, address, logo, logoType, regNumber };
 }
 
 export function setStoredHospitalName(name: string): void {

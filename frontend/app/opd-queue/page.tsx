@@ -103,7 +103,7 @@ export default function OpdQueueScreenPage() {
   const [confirmingArrivalDocId, setConfirmingArrivalDocId] = useState<number | null>(null);
   const [requeueingDocId, setRequeueingDocId] = useState<number | null>(null);
   const [announcement, setAnnouncement] = useState<string | null>(null);
-  const [hospitalName, setHospitalName] = useState("Sanjeevni Medical Pavilion");
+  const [hospitalName, setHospitalName] = useState("Sanjeevni");
   const [audioEnabled, setAudioEnabled] = useState(true);
   const [userRole, setUserRole] = useState("patient");
   const [loggedInDoctorId, setLoggedInDoctorId] = useState<number | null>(null);

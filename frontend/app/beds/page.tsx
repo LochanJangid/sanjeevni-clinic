@@ -59,7 +59,7 @@ export default function HospitalBedsPage() {
   const [requisitionNotes, setRequisitionNotes] = useState("");
   const [patients, setPatients] = useState<Array<{ id: number; username: string; mobile: string | null }>>([]);
   const [admitting, setAdmitting] = useState(false);
-  const [hospitalName, setHospitalName] = useState("Sanjeevni Medical Pavilion");
+  const [hospitalName, setHospitalName] = useState("Sanjeevni");
 
   useEffect(() => {
     setHospitalName(getStoredHospitalName());

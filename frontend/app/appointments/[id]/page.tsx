@@ -347,7 +347,7 @@ function AppointmentDetailContent() {
               </span>
             </div>
             <div className="p-3 bg-white rounded-xl border border-emerald-200 text-slate-800 font-mono text-[11px] leading-relaxed">
-              &ldquo;Hello {appointment.patient_name || "Patient"}, your medical consultation with {appointment.doctor_name} ({appointment.category_name}) is confirmed for {appointment.appointment_date} at {appointment.appointment_time}. {isPaid ? "Payment of ₹" + appointment.fees + " has been received via PhonePe. Receipt: " + receiptData.receipt_number + "." : "Consultation fee: ₹" + appointment.fees + " via PhonePe QR."} Please arrive 10 minutes prior at {appointment.clinic_address || "Sanjeevni Medical Pavilion"}. For assistance, call +91 9999-108-108.&rdquo;
+              &ldquo;Hello {appointment.patient_name || "Patient"}, your medical consultation with {appointment.doctor_name} ({appointment.category_name}) is confirmed for {appointment.appointment_date} at {appointment.appointment_time}. {isPaid ? "Payment of ₹" + appointment.fees + " has been received via PhonePe. Receipt: " + receiptData.receipt_number + "." : "Consultation fee: ₹" + appointment.fees + " via PhonePe QR."} Please arrive 10 minutes prior at {appointment.clinic_address || "chumantar gali jaipur"}. For assistance, call +91 9999-108-108.&rdquo;
             </div>
           </div>
         </div>

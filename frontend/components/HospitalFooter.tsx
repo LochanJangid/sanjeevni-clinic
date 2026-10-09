@@ -20,7 +20,7 @@ import {
 import { getStoredHospitalName } from "../lib/hospital";
 
 export default function HospitalFooter() {
-  const [hospitalName, setHospitalName] = useState("Sanjeevni Super-Specialty Clinic");
+  const [hospitalName, setHospitalName] = useState("Sanjeevni");
 
   useEffect(() => {
     setHospitalName(getStoredHospitalName());
@@ -154,7 +154,7 @@ export default function HospitalFooter() {
             <div className="space-y-1 text-xs text-[#4B5563] pt-1">
               <div className="flex items-start gap-2">
                 <MapPin className="w-3.5 h-3.5 text-[#0D9488] shrink-0 mt-0.5" />
-                <span>Central Health Boulevard, Jaipur, Rajasthan</span>
+                <span>chumantar gali jaipur</span>
               </div>
               <div className="flex items-start gap-2">
                 <Clock className="w-3.5 h-3.5 text-[#0D9488] shrink-0 mt-0.5" />
@@ -164,9 +164,31 @@ export default function HospitalFooter() {
           </div>
         </div>
 
-        {/* Bottom Legal Copyright Bar */}
-        <div className="mt-12 pt-6 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-gray-500 text-center sm:text-left">
-          <p>© {new Date().getFullYear()} {hospitalName}. All clinical rights reserved.</p>
+        {/* Bottom Legal Copyright Bar & Lochan Jangid Attribution */}
+        <div className="mt-12 pt-6 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-[#4B5563] text-center sm:text-left">
+          <div>
+            <p>© {new Date().getFullYear()} {hospitalName}. All clinical rights reserved.</p>
+            <p className="mt-1 text-xs">
+              Created by{" "}
+              <a
+                href="https://lochan.vercel.app"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-bold text-[#1E3A8A] hover:text-[#0D9488] transition underline decoration-[#0D9488]/40 hover:decoration-[#0D9488]"
+              >
+                lochan jangid
+              </a>
+              {" "}·{" "}
+              <a
+                href="https://lochan.vercel.app"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[#0D9488] font-semibold hover:underline"
+              >
+                lochan.vercel.app
+              </a>
+            </p>
+          </div>
           <div className="flex items-center gap-4">
             <Link href="/login" className="hover:text-[#1E3A8A] transition text-gray-500">
               Staff &amp; Patient Portal

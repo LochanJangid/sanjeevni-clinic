@@ -90,7 +90,7 @@ export default function AdminPage() {
   const [error, setError] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
-  const [hospitalName, setHospitalName] = useState("Sanjeevni Medical Pavilion");
+  const [hospitalName, setHospitalName] = useState("Sanjeevni");
 
   // Appoint Doctor Modal State
   const [showDoctorModal, setShowDoctorModal] = useState(false);

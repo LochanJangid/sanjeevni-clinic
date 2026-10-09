@@ -3,7 +3,7 @@ export function generateIcsCalendar(
   specialty: string,
   appointmentDate: string,
   appointmentTime: string,
-  clinicAddress: string = "Sanjeevni Medical Pavilion, Metro Sector 18, New Delhi"
+  clinicAddress: string = "chumantar gali jaipur"
 ) {
   // Format date and time
   const [hours, minutes] = appointmentTime.split(":");
