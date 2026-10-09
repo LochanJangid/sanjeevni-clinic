@@ -29,6 +29,8 @@ interface Appointment {
   category_name?: string;
   payment_status?: string;
   has_prescription?: boolean;
+  opd_token_number?: number | null;
+  opd_token_status?: string | null;
 }
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
@@ -438,15 +440,28 @@ export default function AppointmentsPage() {
                           <div className="text-xs text-gray-500 font-medium">
                             Fee: <strong className="text-[#1E3A8A] text-base font-bold">₹{appointment.fees}</strong>
                           </div>
-                          <div className="flex gap-1.5 justify-start sm:justify-end flex-wrap">
+                          <div className="flex gap-1.5 justify-start sm:justify-end flex-wrap items-center">
+                            {appointment.opd_token_number && (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-teal-50 text-[#0D9488] border border-teal-200">
+                                Token #{appointment.opd_token_number}
+                              </span>
+                            )}
                             <span
                               className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
                                 isCancelled
                                   ? "bg-rose-50 text-rose-700 border border-rose-200"
-                                  : "bg-slate-100 text-[#4B5563] border border-gray-200"
+                                  : appointment.status === "completed"
+                                  ? "bg-teal-50 text-[#0D9488] border border-teal-200"
+                                  : appointment.status === "approved" || appointment.status === "checked_in"
+                                  ? "bg-blue-50 text-[#1E3A8A] border border-blue-200"
+                                  : "bg-amber-50 text-amber-800 border border-amber-200"
                               }`}
                             >
-                              {appointment.status?.toUpperCase() || "BOOKED"}
+                              {appointment.status === "approved"
+                                ? "APPROVED (QUEUED)"
+                                : appointment.status === "booked" || appointment.status === "pending"
+                                ? "AWAITING APPROVAL"
+                                : appointment.status?.toUpperCase() || "BOOKED"}
                             </span>
                             <span
                               className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${

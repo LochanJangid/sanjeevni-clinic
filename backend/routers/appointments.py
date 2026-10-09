@@ -192,11 +192,15 @@ def get_user_appointments(
             COALESCE(p.status, 'pending') AS payment_status,
             p.amount AS payment_amount,
             p.transaction_id,
+            ot.token_number AS opd_token_number,
+            ot.status AS opd_token_status,
+            ot.token_date AS opd_token_date,
             EXISTS (SELECT 1 FROM prescriptions rx WHERE rx.appointment_id = a.id) AS has_prescription
         FROM appointments a
         JOIN doctors d ON a.doctor_id = d.id
         LEFT JOIN categories c ON d.category_id = c.id
         LEFT JOIN payments p ON p.appointment_id = a.id
+        LEFT JOIN opd_tokens ot ON ot.appointment_id = a.id AND ot.status != 'cancelled'
         WHERE a.user_id = %s
         ORDER BY a.appointment_date DESC, a.appointment_time DESC
         """,
@@ -234,6 +238,9 @@ def get_appointment_detail(
             p.payment_method,
             p.transaction_id,
             p.paid_at,
+            ot.token_number AS opd_token_number,
+            ot.status AS opd_token_status,
+            ot.token_date AS opd_token_date,
             EXISTS (SELECT 1 FROM prescriptions rx WHERE rx.appointment_id = a.id) AS has_prescription
         FROM appointments a
         JOIN doctors d ON a.doctor_id = d.id
@@ -241,6 +248,7 @@ def get_appointment_detail(
         LEFT JOIN doctor_profiles dp ON d.id = dp.doctor_id
         JOIN users u ON a.user_id = u.id
         LEFT JOIN payments p ON p.appointment_id = a.id
+        LEFT JOIN opd_tokens ot ON ot.appointment_id = a.id AND ot.status != 'cancelled'
         WHERE a.id = %s
         """,
         (appointment_id,),
@@ -281,6 +289,10 @@ def cancel_appointment(
 
             cursor.execute(
                 "UPDATE appointments SET status = 'cancelled' WHERE id = %s",
+                (appointment_id,),
+            )
+            cursor.execute(
+                "UPDATE opd_tokens SET status = 'cancelled' WHERE appointment_id = %s",
                 (appointment_id,),
             )
 
@@ -341,5 +353,14 @@ def reschedule_appointment(
             )
             updated = cursor.fetchone()
             columns = [column.name for column in cursor.description]
+
+            cursor.execute(
+                """
+                UPDATE opd_tokens
+                SET token_date = %s
+                WHERE appointment_id = %s
+                """,
+                (request.appointment_date, appointment_id),
+            )
 
     return {"success": True, "appointment": dict(zip(columns, updated))}

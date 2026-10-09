@@ -57,6 +57,10 @@ interface MasterAppointment {
   category_name: string;
   payment_status: string;
   payment_amount: number;
+  opd_token_id?: number | null;
+  opd_token_number?: number | null;
+  opd_token_status?: string | null;
+  opd_token_date?: string | null;
 }
 
 interface DoctorWithKey {
@@ -213,6 +217,29 @@ export default function AdminPage() {
       loadAdminData();
     } catch (err) {
       alert(err instanceof Error ? err.message : "Update failed.");
+    }
+  }
+
+  async function handleApproveAppointment(apptId: number, queueDate?: string) {
+    const token = getAuthToken();
+    try {
+      const res = await fetch(`${API_URL}/admin/appointments/${apptId}/approve`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(queueDate ? { queue_date: queueDate } : {}),
+      });
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.detail || "Could not approve appointment.");
+      }
+      const data = await res.json();
+      alert(data.message || `Appointment #${apptId} approved and added to OPD Queue.`);
+      loadAdminData();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Approval failed.");
     }
   }
 
@@ -602,7 +629,8 @@ export default function AdminPage() {
                     className="text-xs py-2 px-3 bg-white border border-gray-200 rounded-xl text-[#4B5563] focus:outline-none focus:border-[#0D9488] transition"
                   >
                     <option value="">All Statuses</option>
-                    <option value="booked">Booked</option>
+                    <option value="booked">Booked (Pending Approval)</option>
+                    <option value="approved">Approved (In OPD Queue)</option>
                     <option value="checked_in">Checked In</option>
                     <option value="completed">Completed</option>
                     <option value="cancelled">Cancelled</option>
@@ -626,7 +654,16 @@ export default function AdminPage() {
                   <tbody className="divide-y divide-gray-100">
                     {appointments.map((appt) => (
                       <tr key={appt.id} className="hover:bg-slate-50 transition">
-                        <td className="py-3.5 px-3 text-[#0D9488] font-bold">#{appt.id}</td>
+                        <td className="py-3.5 px-3">
+                          {appt.opd_token_number ? (
+                            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-teal-50 border border-teal-200 text-[#0D9488] font-mono font-bold text-xs shadow-xs">
+                              <span className="w-2 h-2 rounded-full bg-[#0D9488] animate-pulse" />
+                              <span>Token #{appt.opd_token_number}</span>
+                            </div>
+                          ) : (
+                            <span className="text-gray-400 font-mono text-xs">#{appt.id} (Unqueued)</span>
+                          )}
+                        </td>
                         <td className="py-3.5 px-3 font-sans">
                           <strong className="text-[#1E3A8A] text-sm block">{appt.patient_name}</strong>
                           <span className="text-[11px] font-mono text-gray-500">{appt.patient_mobile || "No phone"}</span>
@@ -636,7 +673,7 @@ export default function AdminPage() {
                           <span className="text-[11px] text-[#0D9488] font-mono">{appt.category_name}</span>
                         </td>
                         <td className="py-3.5 px-3">
-                          <span className="text-[#1E3A8A]">{appt.appointment_date}</span>
+                          <span className="text-[#1E3A8A] font-semibold">{appt.appointment_date}</span>
                           <div className="text-[11px] text-gray-500">{appt.appointment_time}</div>
                         </td>
                         <td className="py-3.5 px-3">
@@ -653,44 +690,73 @@ export default function AdminPage() {
                         </td>
                         <td className="py-3.5 px-3">
                           <span
-                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                            className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold inline-flex items-center gap-1 ${
                               appt.status === "completed"
                                 ? "bg-teal-50 text-[#0D9488] border border-teal-200"
+                                : appt.status === "approved"
+                                ? "bg-emerald-50 text-emerald-800 border border-emerald-300"
                                 : appt.status === "checked_in"
                                 ? "bg-blue-50 text-[#1E3A8A] border border-blue-200"
                                 : appt.status === "cancelled"
                                 ? "bg-rose-50 text-rose-700 border border-rose-200"
-                                : "bg-gray-100 text-[#4B5563] border border-gray-200"
+                                : "bg-amber-50 text-amber-800 border border-amber-200"
                             }`}
                           >
-                            {appt.status.toUpperCase()}
+                            {appt.status === "approved"
+                              ? "APPROVED (IN QUEUE)"
+                              : appt.status === "booked" || appt.status === "pending"
+                              ? "AWAITING APPROVAL"
+                              : appt.status.toUpperCase()}
                           </span>
                         </td>
                         <td className="py-3.5 px-3 text-right">
-                          <div className="flex gap-1.5 justify-end flex-wrap">
-                            {appt.status === "booked" && (
-                              <button
-                                type="button"
-                                onClick={() => handleUpdateStatus(appt.id, "checked_in")}
-                                className="px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-[#1E3A8A] border border-blue-200 rounded-lg text-xs font-bold transition cursor-pointer"
-                              >
-                                Check In
-                              </button>
+                          <div className="flex gap-1.5 justify-end flex-wrap items-center">
+                            {(appt.status === "booked" || appt.status === "pending") && (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => handleApproveAppointment(appt.id)}
+                                  className="px-3 py-1.5 bg-[#0D9488] hover:bg-[#0F766E] text-white rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1 shadow-xs"
+                                  title="Approve booking and auto-enroll into OPD Queue"
+                                >
+                                  <Check className="w-3.5 h-3.5" />
+                                  <span>Approve &amp; Queue</span>
+                                </button>
+                                {appt.appointment_date !== new Date().toISOString().split("T")[0] && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleApproveAppointment(appt.id, new Date().toISOString().split("T")[0])}
+                                    className="px-2 py-1.5 bg-teal-50 hover:bg-teal-100 text-[#0D9488] border border-teal-200 rounded-xl text-xs font-semibold transition cursor-pointer"
+                                    title="Patient arrived early: admit to today's active waiting queue"
+                                  >
+                                    Admit Today
+                                  </button>
+                                )}
+                              </>
                             )}
-                            {appt.status === "checked_in" && (
-                              <button
-                                type="button"
-                                onClick={() => handleUpdateStatus(appt.id, "completed")}
-                                className="px-2.5 py-1 bg-teal-50 hover:bg-teal-100 text-[#0D9488] border border-teal-200 rounded-lg text-xs font-bold transition cursor-pointer"
-                              >
-                                Mark Done
-                              </button>
+                            {(appt.status === "approved" || appt.status === "checked_in") && (
+                              <>
+                                <Link
+                                  href="/opd-queue"
+                                  className="px-2.5 py-1.5 bg-teal-50 hover:bg-teal-100 text-[#0D9488] border border-teal-200 rounded-xl text-xs font-semibold transition inline-flex items-center gap-1"
+                                  title="Open live OPD Queue TV screen"
+                                >
+                                  <span>Live OPD TV</span>
+                                </Link>
+                                <button
+                                  type="button"
+                                  onClick={() => handleUpdateStatus(appt.id, "completed")}
+                                  className="px-2.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-[#1E3A8A] border border-blue-200 rounded-xl text-xs font-bold transition cursor-pointer"
+                                >
+                                  Mark Done
+                                </button>
+                              </>
                             )}
                             {appt.status !== "cancelled" && appt.status !== "completed" && (
                               <button
                                 type="button"
                                 onClick={() => handleUpdateStatus(appt.id, "cancelled")}
-                                className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg text-xs transition cursor-pointer"
+                                className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs transition cursor-pointer"
                               >
                                 Cancel
                               </button>
@@ -698,7 +764,7 @@ export default function AdminPage() {
                             {appt.status === "completed" && (
                               <Link
                                 href={`/prescriptions/${appt.id}`}
-                                className="px-2.5 py-1 bg-gray-100 hover:bg-gray-200 text-[#1E3A8A] border border-gray-200 rounded-lg text-xs transition inline-flex items-center gap-1"
+                                className="px-2.5 py-1.5 bg-gray-100 hover:bg-gray-200 text-[#1E3A8A] border border-gray-200 rounded-xl text-xs transition inline-flex items-center gap-1"
                               >
                                 <span>View Rx</span>
                               </Link>

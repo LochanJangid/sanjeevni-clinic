@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime, timedelta
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Header, Query, status
@@ -13,7 +13,11 @@ db = Database()
 
 
 class UpdateAppointmentStatusRequest(BaseModel):
-    status: str  # booked, checked_in, in_consultation, completed, cancelled
+    status: str  # booked, checked_in, in_consultation, completed, cancelled, approved, pending, confirmed
+
+
+class ApproveAppointmentRequest(BaseModel):
+    queue_date: Optional[date] = None
 
 
 ## CLINIC KPI OVERVIEW ----------
@@ -96,12 +100,17 @@ def get_all_appointments(
             d.fees,
             c.category_name,
             COALESCE(p.status, 'pending') AS payment_status,
-            p.amount AS payment_amount
+            p.amount AS payment_amount,
+            ot.id AS opd_token_id,
+            ot.token_number AS opd_token_number,
+            ot.status AS opd_token_status,
+            ot.token_date AS opd_token_date
         FROM appointments a
         JOIN users u ON a.user_id = u.id
         JOIN doctors d ON a.doctor_id = d.id
         LEFT JOIN categories c ON d.category_id = c.id
         LEFT JOIN payments p ON p.appointment_id = a.id
+        LEFT JOIN opd_tokens ot ON ot.appointment_id = a.id AND ot.status != 'cancelled'
         {where_clause}
         ORDER BY a.appointment_date DESC, a.appointment_time DESC
     """
@@ -109,7 +118,133 @@ def get_all_appointments(
     return db.query(sql, tuple(params) if params else None, decision="fetchall")
 
 
-## UPDATE APPOINTMENT STATUS (CHECK-IN / COMPLETE) ----------
+def issue_opd_token_for_appointment(appointment_id: int, queue_date: date | None = None) -> dict | None:
+    """Issues or reactivates an OPD Queue token for a given appointment."""
+    appt = db.query(
+        """
+        SELECT a.id, a.user_id, a.doctor_id, a.appointment_date, a.appointment_time, a.status,
+               u.username as patient_name
+        FROM appointments a
+        JOIN users u ON a.user_id = u.id
+        WHERE a.id = %s
+        """,
+        (appointment_id,),
+        decision="fetchone"
+    )
+    if not appt:
+        return None
+
+    # Determine token_date: explicit queue_date, or today if appointment is today or past, or appointment_date
+    today = date.today()
+    if queue_date:
+        target_date = queue_date
+    elif appt["appointment_date"] <= today:
+        target_date = today
+    else:
+        target_date = appt["appointment_date"]
+
+    # Check if an OPD token already exists for this appointment
+    existing_token = db.query(
+        """
+        SELECT id, token_number, token_date, status
+        FROM opd_tokens
+        WHERE appointment_id = %s
+        LIMIT 1
+        """,
+        (appointment_id,),
+        decision="fetchone"
+    )
+
+    if existing_token:
+        if existing_token["status"] == "cancelled":
+            updated_tok = db.query(
+                """
+                UPDATE opd_tokens
+                SET status = 'waiting', token_date = %s
+                WHERE id = %s
+                RETURNING *
+                """,
+                (target_date, existing_token["id"]),
+                decision="fetchone"
+            )
+            return updated_tok
+        return existing_token
+
+    # Generate sequential token number for this doctor on this day
+    max_token_row = db.query(
+        "SELECT COALESCE(MAX(token_number), 0) AS max_t FROM opd_tokens WHERE doctor_id = %s AND token_date = %s",
+        (appt["doctor_id"], target_date),
+        decision="fetchone"
+    )
+    max_t = max_token_row["max_t"] if max_token_row else 0
+    if max_t > 0:
+        next_token = max_t + 1
+    else:
+        next_token = appt["doctor_id"] * 100 + 1
+
+    if appt.get("appointment_time"):
+        est_call = datetime.combine(target_date, appt["appointment_time"])
+    else:
+        est_call = datetime.now() + timedelta(minutes=15)
+
+    new_tok = db.query(
+        """
+        INSERT INTO opd_tokens (
+            appointment_id, doctor_id, patient_name, token_number, token_date, status, estimated_call_time, created_at, called_at, patient_arrived
+        ) VALUES (
+            %s, %s, %s, %s, %s, 'waiting', %s, NOW(), NOW(), FALSE
+        )
+        RETURNING *
+        """,
+        (
+            appointment_id,
+            appt["doctor_id"],
+            appt["patient_name"],
+            next_token,
+            target_date,
+            est_call
+        ),
+        decision="fetchone"
+    )
+    return new_tok
+
+
+## APPROVE APPOINTMENT & AUTO-ENROLL INTO OPD QUEUE ----------
+@router.post("/appointments/{appointment_id}/approve")
+def approve_appointment(
+    appointment_id: int,
+    payload: Optional[ApproveAppointmentRequest] = None,
+    authorization: str | None = Header(default=None, alias="Authorization"),
+):
+    claims = authenticated_token_claims(authorization)
+    if claims.get("role") not in ("admin", "doctor"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Clinic staff privileges required.")
+
+    updated = db.query(
+        """
+        UPDATE appointments
+        SET status = 'approved'
+        WHERE id = %s
+        RETURNING id, status, appointment_date, appointment_time, doctor_id, user_id
+        """,
+        (appointment_id,),
+        decision="fetchone"
+    )
+    if not updated:
+        raise HTTPException(status_code=404, detail="Appointment not found.")
+
+    target_queue_date = payload.queue_date if payload else None
+    token = issue_opd_token_for_appointment(appointment_id, target_queue_date)
+
+    return {
+        "success": True,
+        "message": f"Appointment #{appointment_id} approved. OPD Token #{token['token_number'] if token else 'N/A'} issued.",
+        "appointment": updated,
+        "token": token
+    }
+
+
+## UPDATE APPOINTMENT STATUS (CHECK-IN / COMPLETE / CANCEL) ----------
 @router.put("/appointments/{appointment_id}/status")
 def update_appointment_status(
     appointment_id: int,
@@ -121,7 +256,8 @@ def update_appointment_status(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Clinic staff privileges required.")
 
     status_val = payload.status.lower().strip()
-    if status_val not in ("booked", "checked_in", "in_consultation", "completed", "cancelled"):
+    allowed_statuses = ("booked", "checked_in", "in_consultation", "completed", "cancelled", "approved", "pending", "confirmed")
+    if status_val not in allowed_statuses:
         raise HTTPException(status_code=400, detail="Invalid appointment status.")
 
     try:
@@ -144,7 +280,17 @@ def update_appointment_status(
     if not updated:
         raise HTTPException(status_code=404, detail="Appointment not found.")
 
-    return {"success": True, "appointment": updated}
+    token = None
+    if status_val in ("approved", "checked_in"):
+        token = issue_opd_token_for_appointment(appointment_id)
+    elif status_val == "cancelled":
+        db.query("UPDATE opd_tokens SET status = 'cancelled' WHERE appointment_id = %s", (appointment_id,))
+    elif status_val == "completed":
+        db.query("UPDATE opd_tokens SET status = 'completed' WHERE appointment_id = %s", (appointment_id,))
+    elif status_val == "in_consultation":
+        db.query("UPDATE opd_tokens SET status = 'in_consultation', called_at = NOW() WHERE appointment_id = %s", (appointment_id,))
+
+    return {"success": True, "appointment": updated, "token": token}
 
 
 # ==========================================

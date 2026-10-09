@@ -2,7 +2,7 @@ import json
 import uuid
 from datetime import date, datetime, timezone, timedelta
 from typing import Literal, Optional
-from fastapi import APIRouter, Depends, Header, HTTPException, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from pydantic import BaseModel, Field
 
 from database.connection import Database
@@ -766,12 +766,12 @@ def get_my_vaccinations(authorization: str | None = Header(None)):
 # --- 7. LIVE OPD QUEUE SCREEN & TOKEN DISPATCH ---
 
 @router.get("/opd-queue/live")
-def get_live_opd_queue():
-    today = date.today()
+def get_live_opd_queue(date_filter: Optional[date] = Query(default=None, alias="date")):
+    target_date = date_filter if isinstance(date_filter, date) else date.today()
     rows = db.query(
         """
         SELECT ot.id, ot.token_number, ot.status, ot.patient_name, ot.estimated_call_time,
-               ot.called_at, ot.patient_arrived,
+               ot.called_at, ot.patient_arrived, ot.appointment_id,
                d.id as doctor_id, d.name as doctor_name, c.category_name,
                dp.clinic_address
         FROM opd_tokens ot
@@ -781,25 +781,54 @@ def get_live_opd_queue():
         WHERE ot.token_date = %s
         ORDER BY ot.token_number ASC
         """,
-        (today,),
+        (target_date,),
         decision="fetchall"
-    )
+    ) or []
 
-    # Group by doctor
+    # Fetch all doctors so all clinic cabins are represented even if no tokens yet today
+    all_docs = db.query(
+        """
+        SELECT d.id as doctor_id, d.name as doctor_name, c.category_name,
+               COALESCE(dp.clinic_address, CONCAT('Cabin ', d.id, ' · Ground Floor')) as clinic_address
+        FROM doctors d
+        LEFT JOIN categories c ON c.id = d.category_id
+        LEFT JOIN doctor_profiles dp ON dp.doctor_id = d.id
+        ORDER BY d.id ASC
+        """,
+        decision="fetchall"
+    ) or []
+
     by_doctor = {}
+    for d in all_docs:
+        doc_name = d["doctor_name"]
+        by_doctor[doc_name] = {
+            "doctor_id": d["doctor_id"],
+            "doctor_name": doc_name,
+            "specialty": d.get("category_name") or "General Medicine",
+            "room": d.get("clinic_address") or f"Cabin {d['doctor_id']}",
+            "current_token": None,
+            "called_at": None,
+            "patient_arrived": False,
+            "active_patient_name": None,
+            "waiting_tokens": [],
+            "waiting_details": [],
+            "completed_count": 0
+        }
+
     for r in rows:
         doc_name = r["doctor_name"]
         if doc_name not in by_doctor:
             by_doctor[doc_name] = {
                 "doctor_id": r["doctor_id"],
                 "doctor_name": doc_name,
-                "specialty": r["category_name"],
-                "room": r.get("clinic_address", "Consultation Cabin 1"),
+                "specialty": r.get("category_name") or "General Medicine",
+                "room": r.get("clinic_address") or f"Cabin {r['doctor_id']}",
                 "current_token": None,
                 "called_at": None,
                 "patient_arrived": False,
                 "active_patient_name": None,
                 "waiting_tokens": [],
+                "waiting_details": [],
                 "completed_count": 0
             }
         if r["status"] == "in_consultation":
@@ -809,11 +838,18 @@ def get_live_opd_queue():
             by_doctor[doc_name]["active_patient_name"] = r.get("patient_name")
         elif r["status"] == "waiting":
             by_doctor[doc_name]["waiting_tokens"].append(r["token_number"])
+            by_doctor[doc_name]["waiting_details"].append({
+                "id": r["id"],
+                "token_number": r["token_number"],
+                "patient_name": r.get("patient_name") or f"Token #{r['token_number']}",
+                "estimated_call_time": r["estimated_call_time"].isoformat() if r.get("estimated_call_time") else None,
+                "appointment_id": r.get("appointment_id")
+            })
         elif r["status"] == "completed":
             by_doctor[doc_name]["completed_count"] += 1
 
     return {
-        "date": today.isoformat(),
+        "date": target_date.isoformat(),
         "total_active": len([r for r in rows if r["status"] in ("in_consultation", "waiting")]),
         "doctors_on_duty": list(by_doctor.values()),
         "raw_tokens": rows
@@ -835,7 +871,21 @@ def call_next_opd_token(doctor_id: int, authorization: str | None = Header(None)
         raise HTTPException(status_code=403, detail="Doctors can only call patients for their own assigned clinic cabin.")
 
     today = date.today()
-    # Mark current in_consultation as completed if any
+
+    # Mark linked appointment of current in_consultation token as completed if any
+    db.query(
+        """
+        UPDATE appointments
+        SET status = 'completed'
+        WHERE id IN (
+            SELECT appointment_id FROM opd_tokens
+            WHERE doctor_id = %s AND token_date = %s AND status = 'in_consultation' AND appointment_id IS NOT NULL
+        )
+        """,
+        (doctor_id, today)
+    )
+
+    # Mark current in_consultation token as completed if any
     db.query(
         """
         UPDATE opd_tokens
@@ -866,6 +916,13 @@ def call_next_opd_token(doctor_id: int, authorization: str | None = Header(None)
 
     if not next_token:
         return {"msg": "No more patients currently waiting in this doctor's queue.", "token": None}
+
+    # If linked to an appointment, mark appointment as in_consultation
+    if next_token.get("appointment_id"):
+        db.query(
+            "UPDATE appointments SET status = 'in_consultation' WHERE id = %s",
+            (next_token["appointment_id"],)
+        )
 
     return {"msg": f"Now calling Token #{next_token['token_number']}", "token": next_token}
 
@@ -1094,7 +1151,11 @@ def check_in_opd_patient(payload: OpdCheckInRequest, authorization: str | None =
         (payload.doctor_id, today),
         decision="fetchone"
     )
-    next_token = (max_token_row["max_t"] if max_token_row else 0) + 1
+    max_t = max_token_row["max_t"] if max_token_row else 0
+    if max_t > 0:
+        next_token = max_t + 1
+    else:
+        next_token = payload.doctor_id * 100 + 1
 
     new_token = db.query(
         """
@@ -1105,6 +1166,10 @@ def check_in_opd_patient(payload: OpdCheckInRequest, authorization: str | None =
         (payload.appointment_id, payload.doctor_id, payload.patient_name, next_token, today),
         decision="fetchone"
     )
+
+    if payload.appointment_id:
+        db.query("UPDATE appointments SET status = 'checked_in' WHERE id = %s", (payload.appointment_id,))
+
     return {"success": True, "token": new_token, "msg": f"Patient {payload.patient_name} checked in as Token #{next_token}."}
 
 
@@ -1114,12 +1179,15 @@ def remove_opd_token(token_id: int, authorization: str | None = Header(None)):
     if claims.get("role") not in ("doctor", "admin"):
         raise HTTPException(status_code=403, detail="Staff privileges required to remove queue tokens.")
 
+    tok = db.query("SELECT doctor_id, appointment_id FROM opd_tokens WHERE id = %s", (token_id,), decision="fetchone")
     if claims.get("role") == "doctor" and claims.get("doctor_id"):
-        tok = db.query("SELECT doctor_id FROM opd_tokens WHERE id = %s", (token_id,), decision="fetchone")
         if tok and tok["doctor_id"] != claims.get("doctor_id"):
             raise HTTPException(status_code=403, detail="Doctors can only remove tokens from their own cabin's queue.")
 
     db.query("UPDATE opd_tokens SET status = 'cancelled' WHERE id = %s", (token_id,))
+    if tok and tok.get("appointment_id"):
+        db.query("UPDATE appointments SET status = 'cancelled' WHERE id = %s", (tok["appointment_id"],))
+
     return {"success": True, "msg": f"Token #{token_id} removed from waiting queue."}
 
 

@@ -35,6 +35,8 @@ interface Appointment {
   appointment_time: string;
   status: string;
   fees: number;
+  opd_token_number?: number | null;
+  opd_token_status?: string | null;
 }
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
@@ -252,9 +254,18 @@ export default function DashboardPage() {
                   <div className="p-3.5 rounded-2xl bg-gray-50 border border-gray-200 text-xs flex items-center justify-between">
                     <div>
                       <span className="text-[10px] text-gray-400 font-bold uppercase block">Waiting Hall Token</span>
-                      <strong className="text-[#1E3A8A] font-mono">
-                        SJ-TOKEN #{upcoming.id}
-                      </strong>
+                      {upcoming.opd_token_number ? (
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span className="w-2 h-2 rounded-full bg-[#0D9488] animate-pulse" />
+                          <strong className="text-[#1E3A8A] font-mono text-sm">
+                            OPD Token #{upcoming.opd_token_number}
+                          </strong>
+                        </div>
+                      ) : (
+                        <strong className="text-amber-700 text-xs font-semibold block mt-0.5">
+                          Pending Admin Approval
+                        </strong>
+                      )}
                     </div>
                     <Link
                       href="/opd-queue"

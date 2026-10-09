@@ -21,10 +21,19 @@ import {
   X,
   UserPlus,
   Trash2,
-  ShieldCheck
+  ShieldCheck,
+  Calendar
 } from "lucide-react";
 import { getAuthToken, parseTokenClaims } from "../../lib/auth";
 import { getStoredHospitalName } from "../../lib/hospital";
+
+interface WaitingDetail {
+  id: number;
+  token_number: number;
+  patient_name: string;
+  estimated_call_time?: string | null;
+  appointment_id?: number | null;
+}
 
 interface DoctorDuty {
   doctor_id: number;
@@ -36,6 +45,7 @@ interface DoctorDuty {
   patient_arrived?: boolean;
   active_patient_name?: string | null;
   waiting_tokens: number[];
+  waiting_details?: WaitingDetail[];
   completed_count: number;
 }
 
@@ -45,6 +55,8 @@ interface RawToken {
   status: string;
   patient_name?: string;
   doctor_id: number;
+  appointment_id?: number;
+  estimated_call_time?: string;
 }
 
 interface QueueData {
@@ -108,6 +120,9 @@ export default function OpdQueueScreenPage() {
   const [userRole, setUserRole] = useState("patient");
   const [loggedInDoctorId, setLoggedInDoctorId] = useState<number | null>(null);
 
+  const todayDateStr = new Date().toISOString().split("T")[0];
+  const [selectedDate, setSelectedDate] = useState<string>(todayDateStr);
+
   // Check-In Modal State
   const [showCheckInModal, setShowCheckInModal] = useState(false);
   const [checkInName, setCheckInName] = useState("");
@@ -138,25 +153,27 @@ export default function OpdQueueScreenPage() {
     return () => window.removeEventListener("hospital-name-change", handleName);
   }, []);
 
-  async function fetchQueue() {
+  async function fetchQueue(targetDate = selectedDate) {
     try {
-      const res = await fetch(`${API_URL}/clinical/opd-queue/live`);
+      const res = await fetch(`${API_URL}/clinical/opd-queue/live?date=${targetDate}`);
       if (res.ok) {
         const data: QueueData = await res.json();
         setQueueData(data);
 
-        // Check if any doctor just called a new token
-        for (const doc of data.doctors_on_duty) {
-          if (
-            doc.current_token &&
-            lastAnnouncedTokenRef.current !== null &&
-            doc.current_token !== lastAnnouncedTokenRef.current
-          ) {
-            if (audioEnabled) playHospitalChime();
-            setAnnouncement(`🔔 Token #${doc.current_token} → Please proceed to ${doc.room} (${doc.doctor_name})`);
-            setTimeout(() => setAnnouncement(null), 9000);
-            lastAnnouncedTokenRef.current = doc.current_token;
-            break;
+        // Check if any doctor just called a new token (only chime for today's live queue)
+        if (targetDate === todayDateStr) {
+          for (const doc of data.doctors_on_duty) {
+            if (
+              doc.current_token &&
+              lastAnnouncedTokenRef.current !== null &&
+              doc.current_token !== lastAnnouncedTokenRef.current
+            ) {
+              if (audioEnabled) playHospitalChime();
+              setAnnouncement(`🔔 Token #${doc.current_token} → Please proceed to ${doc.room} (${doc.doctor_name})`);
+              setTimeout(() => setAnnouncement(null), 9000);
+              lastAnnouncedTokenRef.current = doc.current_token;
+              break;
+            }
           }
         }
       }
@@ -168,10 +185,10 @@ export default function OpdQueueScreenPage() {
   }
 
   useEffect(() => {
-    fetchQueue();
-    const interval = setInterval(fetchQueue, 5000); // Poll every 5s
+    fetchQueue(selectedDate);
+    const interval = setInterval(() => fetchQueue(selectedDate), 5000); // Poll every 5s
     return () => clearInterval(interval);
-  }, [audioEnabled]);
+  }, [audioEnabled, selectedDate]);
 
   useEffect(() => {
     const updateTime = () => {
@@ -481,6 +498,59 @@ export default function OpdQueueScreenPage() {
           </div>
         </div>
 
+        {/* Date Filter & Status Banner */}
+        <div className="mt-4 p-3.5 bg-slate-50 border border-gray-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-bold text-[#1E3A8A] flex items-center gap-1.5">
+              <Calendar className="w-4 h-4 text-[#0D9488]" />
+              <span>Queue Date:</span>
+            </span>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setSelectedDate(todayDateStr)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                  selectedDate === todayDateStr
+                    ? "bg-[#0D9488] text-white shadow-xs"
+                    : "bg-white text-[#4B5563] border border-gray-200 hover:bg-gray-100"
+                }`}
+              >
+                Today (Live)
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const tmr = new Date();
+                  tmr.setDate(tmr.getDate() + 1);
+                  setSelectedDate(tmr.toISOString().split("T")[0]);
+                }}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                  selectedDate !== todayDateStr
+                    ? "bg-[#0D9488] text-white shadow-xs"
+                    : "bg-white text-[#4B5563] border border-gray-200 hover:bg-gray-100"
+                }`}
+              >
+                Tomorrow
+              </button>
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="px-2.5 py-1 text-xs bg-white border border-gray-200 rounded-xl text-[#1E3A8A] font-semibold focus:outline-none focus:border-[#0D9488]"
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 text-xs">
+            <span className="text-gray-500 font-medium">
+              Queue Roster for <strong className="text-[#1E3A8A]">{selectedDate === todayDateStr ? "Today" : selectedDate}</strong>
+            </span>
+            <span className="font-bold text-[#0D9488] font-mono text-xs px-2.5 py-0.5 rounded-full bg-teal-50 border border-teal-200">
+              {queueData?.total_active ?? 0} Waiting
+            </span>
+          </div>
+        </div>
+
         {/* High-Visibility Announcement Marquee Banner */}
         {announcement && (
           <div className="mt-6 p-4 rounded-2xl bg-[#1E3A8A] text-white font-bold text-base sm:text-lg flex items-center justify-between shadow-lg animate-pulse">
@@ -654,15 +724,38 @@ export default function OpdQueueScreenPage() {
                           </span>
                         </div>
                         <div className="flex flex-wrap gap-2 pt-1">
-                          {doc.waiting_tokens.length === 0 ? (
+                          {doc.waiting_details && doc.waiting_details.length > 0 ? (
+                            doc.waiting_details.map((detail) => (
+                              <span
+                                key={detail.id || detail.token_number}
+                                className="group inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-[#1E3A8A] border border-gray-200 rounded-xl font-mono text-xs font-bold shadow-xs transition"
+                                title={`Patient: ${detail.patient_name}`}
+                              >
+                                <span>#{detail.token_number}</span>
+                                <span className="font-sans font-normal text-[11px] text-[#4B5563] max-w-[95px] truncate">
+                                  {detail.patient_name}
+                                </span>
+                                {isMyCabin && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveToken(doc.doctor_id, detail.token_number)}
+                                    title="Remove patient from queue"
+                                    className="text-gray-400 hover:text-rose-600 transition p-0.5 rounded cursor-pointer"
+                                  >
+                                    <X className="w-3 h-3" />
+                                  </button>
+                                )}
+                              </span>
+                            ))
+                          ) : doc.waiting_tokens.length === 0 ? (
                             <span className="text-gray-400 text-xs italic">
                               Queue clear · No waiting patients
                             </span>
                           ) : (
-                            doc.waiting_tokens.slice(0, 6).map((tok) => (
+                            doc.waiting_tokens.slice(0, 8).map((tok) => (
                               <span
                                 key={tok}
-                                className="group inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 text-[#1E3A8A] border border-gray-200 rounded-xl font-mono text-xs font-bold shadow-sm"
+                                className="group inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 text-[#1E3A8A] border border-gray-200 rounded-xl font-mono text-xs font-bold shadow-xs"
                               >
                                 <span>#{tok}</span>
                                 {isMyCabin && (

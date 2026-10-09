@@ -29,6 +29,8 @@ interface AppointmentDetail {
   transaction_id: string;
   paid_at: string;
   has_prescription: boolean;
+  opd_token_number?: number | null;
+  opd_token_status?: string | null;
 }
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
@@ -230,17 +232,23 @@ function AppointmentDetailContent() {
                 {appointment.category_name} Specialist · {appointment.qualification}
               </p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
               <span
                 className={`status-pill ${
                   appointment.status === "completed"
                     ? "status-completed"
                     : appointment.status === "cancelled"
                     ? "status-cancelled"
+                    : appointment.status === "approved" || appointment.status === "checked_in"
+                    ? "status-completed"
                     : "status-booked"
                 }`}
               >
-                {appointment.status.toUpperCase()}
+                {appointment.status === "approved"
+                  ? "APPROVED (IN OPD QUEUE)"
+                  : appointment.status === "booked" || appointment.status === "pending"
+                  ? "AWAITING ADMIN APPROVAL"
+                  : appointment.status.toUpperCase()}
               </span>
               <span
                 className={`status-pill ${
@@ -260,6 +268,23 @@ function AppointmentDetailContent() {
             <div className="detail-meta-box">
               <span className="label">Appointment Time</span>
               <strong>{appointment.appointment_time} (30 mins)</strong>
+            </div>
+            <div className="detail-meta-box">
+              <span className="label">OPD Queue Token</span>
+              {appointment.opd_token_number ? (
+                <div className="flex items-center gap-2">
+                  <strong className="text-[#0D9488] font-mono text-base font-bold">
+                    Token #{appointment.opd_token_number}
+                  </strong>
+                  <Link href="/opd-queue" className="text-xs font-bold text-[#1E3A8A] hover:underline">
+                    (Live Queue TV ↗)
+                  </Link>
+                </div>
+              ) : (
+                <span className="text-amber-700 text-xs font-semibold">
+                  Pending Admin Approval · Auto-assigned upon approval
+                </span>
+              )}
             </div>
             <div className="detail-meta-box">
               <span className="label">Consultation Fee</span>

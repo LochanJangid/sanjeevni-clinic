@@ -146,7 +146,7 @@ export default function DoctorPortalPage() {
     function handleKeyDown(e: KeyboardEvent) {
       if (e.altKey && (e.key === "n" || e.key === "N")) {
         e.preventDefault();
-        const nextAppt = appointments.find((a) => a.status === "booked" || a.status === "checked_in");
+        const nextAppt = appointments.find((a) => ["booked", "checked_in", "approved", "pending"].includes(a.status));
         if (nextAppt) {
           setConsultingAppt(nextAppt);
           setSuccessToast("");
@@ -319,7 +319,7 @@ export default function DoctorPortalPage() {
     }
   }
 
-  const pendingVisits = appointments.filter((a) => a.status === "booked" || a.status === "checked_in");
+  const pendingVisits = appointments.filter((a) => ["booked", "checked_in", "approved", "pending"].includes(a.status));
   const completedVisits = appointments.filter((a) => a.status === "completed");
 
   if (error) {
