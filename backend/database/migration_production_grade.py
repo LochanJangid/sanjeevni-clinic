@@ -112,6 +112,16 @@ def run_migration():
                 
                 print(f"Doctor ID {doc_id} ({doc_name}) configured with Access Key: {key}")
 
+            # 5. Expand appointments.status check constraint to support full workflow
+            cur.execute("""
+                ALTER TABLE appointments ALTER COLUMN status TYPE VARCHAR(50);
+                ALTER TABLE appointments DROP CONSTRAINT IF EXISTS appointments_status_check;
+                ALTER TABLE appointments 
+                ADD CONSTRAINT appointments_status_check 
+                CHECK (status IN ('booked', 'checked_in', 'in_consultation', 'completed', 'cancelled', 'confirmed', 'scheduled', 'pending'));
+            """)
+            print("Updated appointments_status_check constraint.")
+
             conn.commit()
     print("Migration completed successfully!")
 

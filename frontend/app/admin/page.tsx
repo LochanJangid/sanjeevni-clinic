@@ -206,7 +206,10 @@ export default function AdminPage() {
         },
         body: JSON.stringify({ status: newStatus }),
       });
-      if (!res.ok) throw new Error("Could not update status.");
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.detail || "Could not update status.");
+      }
       loadAdminData();
     } catch (err) {
       alert(err instanceof Error ? err.message : "Update failed.");

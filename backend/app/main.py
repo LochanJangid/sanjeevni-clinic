@@ -17,16 +17,36 @@ from routers import dpdp
 from routers import abdm
 from database.connection import Database
 
+import logging
+from fastapi import Request
+from fastapi.responses import JSONResponse
+
+logger = logging.getLogger("uvicorn.error")
+
 app = FastAPI(title="Sanjeevni Clinic SaaS API", version="2.0.0")
 
 # CORS configuration
 app.add_middleware(
     CORSMiddleware,
+    allow_origins=[
+        "https://sanjeevni-clinic.vercel.app",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ],
     allow_origin_regex=r"https?://.*",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.error(f"Unhandled error on {request.method} {request.url.path}: {exc}", exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "An internal server error occurred.", "error": str(exc)},
+    )
+
 
 ## ROUTERS ------------------
 app.include_router(users.router)

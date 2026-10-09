@@ -124,16 +124,22 @@ def update_appointment_status(
     if status_val not in ("booked", "checked_in", "in_consultation", "completed", "cancelled"):
         raise HTTPException(status_code=400, detail="Invalid appointment status.")
 
-    updated = db.query(
-        """
-        UPDATE appointments
-        SET status = %s
-        WHERE id = %s
-        RETURNING id, status, appointment_date, appointment_time
-        """,
-        (status_val, appointment_id),
-        decision="fetchone",
-    )
+    try:
+        updated = db.query(
+            """
+            UPDATE appointments
+            SET status = %s
+            WHERE id = %s
+            RETURNING id, status, appointment_date, appointment_time
+            """,
+            (status_val, appointment_id),
+            decision="fetchone",
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Database update failed: {str(exc)}",
+        )
 
     if not updated:
         raise HTTPException(status_code=404, detail="Appointment not found.")
