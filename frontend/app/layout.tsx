@@ -3,6 +3,8 @@ import { Geist } from "next/font/google";
 import { Suspense } from "react";
 import "./globals.css";
 import AppEnvironmentShell from "../components/AppEnvironmentShell";
+import { Analytics } from "@vercel/analytics/next"
+
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -27,6 +29,7 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} h-full antialiased`}
     >
+      <Analytics/>
       <body className="min-h-full flex flex-col">
         <Suspense fallback={<div className="min-h-screen bg-white" />}>
           <AppEnvironmentShell>{children}</AppEnvironmentShell>
