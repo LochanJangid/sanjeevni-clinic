@@ -29,10 +29,10 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} h-full antialiased`}
     >
-      <Analytics/>
       <body className="min-h-full flex flex-col">
         <Suspense fallback={<div className="min-h-screen bg-white" />}>
           <AppEnvironmentShell>{children}</AppEnvironmentShell>
+          <Analytics />
         </Suspense>
       </body>
     </html>
