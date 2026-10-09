@@ -68,6 +68,13 @@ interface QueueData {
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
+function getLocalDateString(d: Date = new Date()): string {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 // Pure Web Audio API authentic hospital two-tone chime (E5 -> C5)
 function playHospitalChime() {
   try {
@@ -120,7 +127,11 @@ export default function OpdQueueScreenPage() {
   const [userRole, setUserRole] = useState("patient");
   const [loggedInDoctorId, setLoggedInDoctorId] = useState<number | null>(null);
 
-  const todayDateStr = new Date().toISOString().split("T")[0];
+  const todayDateStr = getLocalDateString(new Date());
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrowDateStr = getLocalDateString(tomorrow);
+
   const [selectedDate, setSelectedDate] = useState<string>(todayDateStr);
 
   // Check-In Modal State
@@ -380,18 +391,12 @@ export default function OpdQueueScreenPage() {
     }
   }
 
-  async function handleRemoveToken(docId: number, tokenNum: number) {
+  async function handleRemoveToken(tokenId: number, tokenNum: number) {
     if (!confirm(`Are you sure you want to remove Token #${tokenNum} from the queue?`)) return;
     const token = getAuthToken();
 
-    // Find the raw token id
-    const found = queueData?.raw_tokens?.find(
-      (t) => t.doctor_id === docId && t.token_number === tokenNum && t.status === "waiting"
-    );
-    const tokenIdToRemove = found ? found.id : tokenNum;
-
     try {
-      const res = await fetch(`${API_URL}/clinical/opd-queue/remove-token/${tokenIdToRemove}`, {
+      const res = await fetch(`${API_URL}/clinical/opd-queue/remove-token/${tokenId}`, {
         method: "POST",
         headers: {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -401,10 +406,24 @@ export default function OpdQueueScreenPage() {
       if (res.ok) {
         setAnnouncement(`Token #${tokenNum} removed from queue.`);
         setTimeout(() => setAnnouncement(null), 4000);
-        await fetchQueue();
+        await fetchQueue(selectedDate);
+      } else {
+        const err = await res.json().catch(() => ({}));
+        alert(err.detail || "Could not remove token.");
       }
     } catch (e) {
       console.error("Failed to remove token:", e);
+    }
+  }
+
+  async function handleRemoveTokenByNumber(docId: number, tokenNum: number) {
+    const found = queueData?.raw_tokens?.find(
+      (t) => t.doctor_id === docId && t.token_number === tokenNum && t.status === "waiting"
+    );
+    if (found) {
+      handleRemoveToken(found.id, tokenNum);
+    } else {
+      handleRemoveToken(tokenNum, tokenNum);
     }
   }
 
@@ -519,13 +538,9 @@ export default function OpdQueueScreenPage() {
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  const tmr = new Date();
-                  tmr.setDate(tmr.getDate() + 1);
-                  setSelectedDate(tmr.toISOString().split("T")[0]);
-                }}
+                onClick={() => setSelectedDate(tomorrowDateStr)}
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
-                  selectedDate !== todayDateStr
+                  selectedDate === tomorrowDateStr
                     ? "bg-[#0D9488] text-white shadow-xs"
                     : "bg-white text-[#4B5563] border border-gray-200 hover:bg-gray-100"
                 }`}
@@ -738,7 +753,7 @@ export default function OpdQueueScreenPage() {
                                 {isMyCabin && (
                                   <button
                                     type="button"
-                                    onClick={() => handleRemoveToken(doc.doctor_id, detail.token_number)}
+                                    onClick={() => handleRemoveToken(detail.id, detail.token_number)}
                                     title="Remove patient from queue"
                                     className="text-gray-400 hover:text-rose-600 transition p-0.5 rounded cursor-pointer"
                                   >
@@ -761,7 +776,7 @@ export default function OpdQueueScreenPage() {
                                 {isMyCabin && (
                                   <button
                                     type="button"
-                                    onClick={() => handleRemoveToken(doc.doctor_id, tok)}
+                                    onClick={() => handleRemoveTokenByNumber(doc.doctor_id, tok)}
                                     title="Remove patient from queue"
                                     className="text-gray-400 hover:text-rose-600 transition p-0.5 rounded cursor-pointer"
                                   >

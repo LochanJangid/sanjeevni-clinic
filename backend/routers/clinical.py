@@ -770,12 +770,15 @@ def get_live_opd_queue(date_filter: Optional[date] = Query(default=None, alias="
     target_date = date_filter if isinstance(date_filter, date) else date.today()
     rows = db.query(
         """
-        SELECT ot.id, ot.token_number, ot.status, ot.patient_name, ot.estimated_call_time,
-               ot.called_at, ot.patient_arrived, ot.appointment_id,
+        SELECT ot.id, ot.token_number, ot.status,
+               COALESCE(NULLIF(TRIM(ot.patient_name), ''), u.username, 'Walk-in Patient') as patient_name,
+               ot.estimated_call_time, ot.called_at, ot.patient_arrived, ot.appointment_id,
                d.id as doctor_id, d.name as doctor_name, c.category_name,
-               dp.clinic_address
+               COALESCE(dp.clinic_address, CONCAT('Cabin ', d.id, ' · Ground Floor')) as clinic_address
         FROM opd_tokens ot
         JOIN doctors d ON d.id = ot.doctor_id
+        LEFT JOIN appointments a ON a.id = ot.appointment_id
+        LEFT JOIN users u ON u.id = a.user_id
         LEFT JOIN categories c ON c.id = d.category_id
         LEFT JOIN doctor_profiles dp ON dp.doctor_id = d.id
         WHERE ot.token_date = %s
@@ -800,12 +803,12 @@ def get_live_opd_queue(date_filter: Optional[date] = Query(default=None, alias="
 
     by_doctor = {}
     for d in all_docs:
-        doc_name = d["doctor_name"]
-        by_doctor[doc_name] = {
-            "doctor_id": d["doctor_id"],
-            "doctor_name": doc_name,
+        doc_id = d["doctor_id"]
+        by_doctor[doc_id] = {
+            "doctor_id": doc_id,
+            "doctor_name": d["doctor_name"],
             "specialty": d.get("category_name") or "General Medicine",
-            "room": d.get("clinic_address") or f"Cabin {d['doctor_id']}",
+            "room": d.get("clinic_address") or f"Cabin {doc_id}",
             "current_token": None,
             "called_at": None,
             "patient_arrived": False,
@@ -816,13 +819,13 @@ def get_live_opd_queue(date_filter: Optional[date] = Query(default=None, alias="
         }
 
     for r in rows:
-        doc_name = r["doctor_name"]
-        if doc_name not in by_doctor:
-            by_doctor[doc_name] = {
-                "doctor_id": r["doctor_id"],
-                "doctor_name": doc_name,
+        doc_id = r["doctor_id"]
+        if doc_id not in by_doctor:
+            by_doctor[doc_id] = {
+                "doctor_id": doc_id,
+                "doctor_name": r["doctor_name"],
                 "specialty": r.get("category_name") or "General Medicine",
-                "room": r.get("clinic_address") or f"Cabin {r['doctor_id']}",
+                "room": r.get("clinic_address") or f"Cabin {doc_id}",
                 "current_token": None,
                 "called_at": None,
                 "patient_arrived": False,
@@ -832,13 +835,13 @@ def get_live_opd_queue(date_filter: Optional[date] = Query(default=None, alias="
                 "completed_count": 0
             }
         if r["status"] == "in_consultation":
-            by_doctor[doc_name]["current_token"] = r["token_number"]
-            by_doctor[doc_name]["called_at"] = r["called_at"].isoformat() if r.get("called_at") else None
-            by_doctor[doc_name]["patient_arrived"] = bool(r.get("patient_arrived", False))
-            by_doctor[doc_name]["active_patient_name"] = r.get("patient_name")
+            by_doctor[doc_id]["current_token"] = r["token_number"]
+            by_doctor[doc_id]["called_at"] = r["called_at"].isoformat() if r.get("called_at") else None
+            by_doctor[doc_id]["patient_arrived"] = bool(r.get("patient_arrived", False))
+            by_doctor[doc_id]["active_patient_name"] = r.get("patient_name")
         elif r["status"] == "waiting":
-            by_doctor[doc_name]["waiting_tokens"].append(r["token_number"])
-            by_doctor[doc_name]["waiting_details"].append({
+            by_doctor[doc_id]["waiting_tokens"].append(r["token_number"])
+            by_doctor[doc_id]["waiting_details"].append({
                 "id": r["id"],
                 "token_number": r["token_number"],
                 "patient_name": r.get("patient_name") or f"Token #{r['token_number']}",
@@ -846,7 +849,7 @@ def get_live_opd_queue(date_filter: Optional[date] = Query(default=None, alias="
                 "appointment_id": r.get("appointment_id")
             })
         elif r["status"] == "completed":
-            by_doctor[doc_name]["completed_count"] += 1
+            by_doctor[doc_id]["completed_count"] += 1
 
     return {
         "date": target_date.isoformat(),
@@ -1012,6 +1015,7 @@ def push_absent_patient_to_end(doctor_id: int, authorization: str | None = Heade
         appt = db.query("SELECT user_id FROM appointments WHERE id = %s", (current["appointment_id"],), decision="fetchone")
         if appt:
             patient_user_id = appt["user_id"]
+        db.query("UPDATE appointments SET status = 'approved' WHERE id = %s", (current["appointment_id"],))
 
     patient_name = current.get("patient_name") or f"Token #{current['token_number']}"
     doc_name = current.get("doctor_name") or "Doctor"
@@ -1042,6 +1046,9 @@ def push_absent_patient_to_end(doctor_id: int, authorization: str | None = Heade
         (doctor_id, today),
         decision="fetchone"
     )
+
+    if next_token and next_token.get("appointment_id"):
+        db.query("UPDATE appointments SET status = 'in_consultation' WHERE id = %s", (next_token["appointment_id"],))
 
     next_msg = f"Now calling Token #{next_token['token_number']}" if next_token else "No more patients currently waiting."
     return {
@@ -1179,7 +1186,10 @@ def remove_opd_token(token_id: int, authorization: str | None = Header(None)):
     if claims.get("role") not in ("doctor", "admin"):
         raise HTTPException(status_code=403, detail="Staff privileges required to remove queue tokens.")
 
-    tok = db.query("SELECT doctor_id, appointment_id FROM opd_tokens WHERE id = %s", (token_id,), decision="fetchone")
+    tok = db.query("SELECT id, doctor_id, appointment_id FROM opd_tokens WHERE id = %s", (token_id,), decision="fetchone")
+    if not tok:
+        raise HTTPException(status_code=404, detail="Queue token not found.")
+
     if claims.get("role") == "doctor" and claims.get("doctor_id"):
         if tok and tok["doctor_id"] != claims.get("doctor_id"):
             raise HTTPException(status_code=403, detail="Doctors can only remove tokens from their own cabin's queue.")

@@ -85,6 +85,13 @@ interface CategoryItem {
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
+function getLocalDateString(d: Date = new Date()): string {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 export default function AdminPage() {
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [appointments, setAppointments] = useState<MasterAppointment[]>([]);
@@ -95,6 +102,8 @@ export default function AdminPage() {
   const [statusFilter, setStatusFilter] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [hospitalName, setHospitalName] = useState("Sanjeevni");
+  const [approvingApptId, setApprovingApptId] = useState<number | null>(null);
+  const [actionToast, setActionToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
   // Appoint Doctor Modal State
   const [showDoctorModal, setShowDoctorModal] = useState(false);
@@ -214,13 +223,23 @@ export default function AdminPage() {
         const errorData = await res.json().catch(() => ({}));
         throw new Error(errorData.detail || "Could not update status.");
       }
-      loadAdminData();
+      setActionToast({
+        type: "success",
+        message: `Appointment #${apptId} status updated to ${newStatus.toUpperCase()}.`,
+      });
+      setTimeout(() => setActionToast(null), 5000);
+      await loadAdminData();
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Update failed.");
+      setActionToast({
+        type: "error",
+        message: err instanceof Error ? err.message : "Update failed.",
+      });
+      setTimeout(() => setActionToast(null), 5000);
     }
   }
 
   async function handleApproveAppointment(apptId: number, queueDate?: string) {
+    setApprovingApptId(apptId);
     const token = getAuthToken();
     try {
       const res = await fetch(`${API_URL}/admin/appointments/${apptId}/approve`, {
@@ -236,10 +255,20 @@ export default function AdminPage() {
         throw new Error(errorData.detail || "Could not approve appointment.");
       }
       const data = await res.json();
-      alert(data.message || `Appointment #${apptId} approved and added to OPD Queue.`);
-      loadAdminData();
+      setActionToast({
+        type: "success",
+        message: data.message || `Appointment #${apptId} approved and added to OPD Queue.`,
+      });
+      setTimeout(() => setActionToast(null), 6000);
+      await loadAdminData();
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Approval failed.");
+      setActionToast({
+        type: "error",
+        message: err instanceof Error ? err.message : "Approval failed.",
+      });
+      setTimeout(() => setActionToast(null), 6000);
+    } finally {
+      setApprovingApptId(null);
     }
   }
 
@@ -603,6 +632,28 @@ export default function AdminPage() {
 
             {/* SECTION 2: APPOINTMENTS & CONSULTATION ACTIONS */}
             <section className="p-6 rounded-2xl bg-white border border-gray-200 shadow-sm space-y-4">
+              {actionToast && (
+                <div
+                  className={`p-4 rounded-xl text-xs font-bold flex items-center justify-between border shadow-xs ${
+                    actionToast.type === "success"
+                      ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                      : "bg-rose-50 text-rose-800 border-rose-200"
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-base">{actionToast.type === "success" ? "✓" : "⚠️"}</span>
+                    <span>{actionToast.message}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setActionToast(null)}
+                    className="text-gray-400 hover:text-gray-600 font-bold px-1"
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
+
               <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-gray-200 gap-3">
                 <div>
                   <span className="px-2.5 py-0.5 rounded-full bg-teal-50 text-[#0D9488] border border-teal-200 text-[10px] font-bold mb-1 inline-flex">
@@ -652,127 +703,157 @@ export default function AdminPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {appointments.map((appt) => (
-                      <tr key={appt.id} className="hover:bg-slate-50 transition">
-                        <td className="py-3.5 px-3">
-                          {appt.opd_token_number ? (
-                            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-teal-50 border border-teal-200 text-[#0D9488] font-mono font-bold text-xs shadow-xs">
-                              <span className="w-2 h-2 rounded-full bg-[#0D9488] animate-pulse" />
-                              <span>Token #{appt.opd_token_number}</span>
+                    {appointments.map((appt) => {
+                      const todayStr = getLocalDateString();
+                      return (
+                        <tr key={appt.id} className="hover:bg-slate-50 transition">
+                          <td className="py-3.5 px-3">
+                            {appt.opd_token_number ? (
+                              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-teal-50 border border-teal-200 text-[#0D9488] font-mono font-bold text-xs shadow-xs">
+                                <span className="w-2 h-2 rounded-full bg-[#0D9488] animate-pulse" />
+                                <span>Token #{appt.opd_token_number}</span>
+                                {appt.opd_token_date && (
+                                  <span className="text-[10px] text-gray-500 font-sans font-normal ml-0.5">
+                                    ({appt.opd_token_date === todayStr ? "Today" : appt.opd_token_date})
+                                  </span>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-gray-400 font-mono text-xs">#{appt.id} (Unqueued)</span>
+                            )}
+                          </td>
+                          <td className="py-3.5 px-3 font-sans">
+                            <strong className="text-[#1E3A8A] text-sm block">{appt.patient_name}</strong>
+                            <span className="text-[11px] font-mono text-gray-500">{appt.patient_mobile || "No phone"}</span>
+                          </td>
+                          <td className="py-3.5 px-3 font-sans">
+                            <strong className="text-[#1E3A8A] block">{appt.doctor_name}</strong>
+                            <span className="text-[11px] text-[#0D9488] font-mono">{appt.category_name}</span>
+                          </td>
+                          <td className="py-3.5 px-3">
+                            <span className="text-[#1E3A8A] font-semibold">{appt.appointment_date}</span>
+                            <div className="text-[11px] text-gray-500">{appt.appointment_time}</div>
+                          </td>
+                          <td className="py-3.5 px-3">
+                            <strong className="text-[#1E3A8A]">₹{appt.fees}</strong>
+                            <div>
+                              <span
+                                className={`text-[10px] font-bold ${
+                                  appt.payment_status === "paid" ? "text-[#0D9488]" : "text-amber-600"
+                                }`}
+                              >
+                                {appt.payment_status === "paid" ? "PAID ✓" : "PENDING"}
+                              </span>
                             </div>
-                          ) : (
-                            <span className="text-gray-400 font-mono text-xs">#{appt.id} (Unqueued)</span>
-                          )}
-                        </td>
-                        <td className="py-3.5 px-3 font-sans">
-                          <strong className="text-[#1E3A8A] text-sm block">{appt.patient_name}</strong>
-                          <span className="text-[11px] font-mono text-gray-500">{appt.patient_mobile || "No phone"}</span>
-                        </td>
-                        <td className="py-3.5 px-3 font-sans">
-                          <strong className="text-[#1E3A8A] block">{appt.doctor_name}</strong>
-                          <span className="text-[11px] text-[#0D9488] font-mono">{appt.category_name}</span>
-                        </td>
-                        <td className="py-3.5 px-3">
-                          <span className="text-[#1E3A8A] font-semibold">{appt.appointment_date}</span>
-                          <div className="text-[11px] text-gray-500">{appt.appointment_time}</div>
-                        </td>
-                        <td className="py-3.5 px-3">
-                          <strong className="text-[#1E3A8A]">₹{appt.fees}</strong>
-                          <div>
+                          </td>
+                          <td className="py-3.5 px-3">
                             <span
-                              className={`text-[10px] font-bold ${
-                                appt.payment_status === "paid" ? "text-[#0D9488]" : "text-amber-600"
+                              className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold inline-flex items-center gap-1 ${
+                                appt.status === "completed"
+                                  ? "bg-teal-50 text-[#0D9488] border border-teal-200"
+                                  : appt.status === "in_consultation"
+                                  ? "bg-purple-50 text-purple-700 border border-purple-200 animate-pulse"
+                                  : appt.status === "approved"
+                                  ? appt.opd_token_date === todayStr
+                                    ? "bg-emerald-50 text-emerald-800 border border-emerald-300"
+                                    : "bg-blue-50 text-blue-800 border border-blue-200"
+                                  : appt.status === "checked_in"
+                                  ? "bg-blue-50 text-[#1E3A8A] border border-blue-200"
+                                  : appt.status === "cancelled"
+                                  ? "bg-rose-50 text-rose-700 border border-rose-200"
+                                  : "bg-amber-50 text-amber-800 border border-amber-200"
                               }`}
                             >
-                              {appt.payment_status === "paid" ? "PAID ✓" : "PENDING"}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="py-3.5 px-3">
-                          <span
-                            className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold inline-flex items-center gap-1 ${
-                              appt.status === "completed"
-                                ? "bg-teal-50 text-[#0D9488] border border-teal-200"
+                              {appt.status === "completed"
+                                ? "COMPLETED ✓"
+                                : appt.status === "in_consultation"
+                                ? "IN CABIN (CONSULTING)"
                                 : appt.status === "approved"
-                                ? "bg-emerald-50 text-emerald-800 border border-emerald-300"
+                                ? appt.opd_token_date === todayStr
+                                  ? "APPROVED (QUEUED TODAY)"
+                                  : `APPROVED (QUEUED ${appt.opd_token_date || appt.appointment_date})`
                                 : appt.status === "checked_in"
-                                ? "bg-blue-50 text-[#1E3A8A] border border-blue-200"
-                                : appt.status === "cancelled"
-                                ? "bg-rose-50 text-rose-700 border border-rose-200"
-                                : "bg-amber-50 text-amber-800 border border-amber-200"
-                            }`}
-                          >
-                            {appt.status === "approved"
-                              ? "APPROVED (IN QUEUE)"
-                              : appt.status === "booked" || appt.status === "pending"
-                              ? "AWAITING APPROVAL"
-                              : appt.status.toUpperCase()}
-                          </span>
-                        </td>
-                        <td className="py-3.5 px-3 text-right">
-                          <div className="flex gap-1.5 justify-end flex-wrap items-center">
-                            {(appt.status === "booked" || appt.status === "pending") && (
-                              <>
-                                <button
-                                  type="button"
-                                  onClick={() => handleApproveAppointment(appt.id)}
-                                  className="px-3 py-1.5 bg-[#0D9488] hover:bg-[#0F766E] text-white rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1 shadow-xs"
-                                  title="Approve booking and auto-enroll into OPD Queue"
-                                >
-                                  <Check className="w-3.5 h-3.5" />
-                                  <span>Approve &amp; Queue</span>
-                                </button>
-                                {appt.appointment_date !== new Date().toISOString().split("T")[0] && (
+                                ? "CHECKED IN"
+                                : appt.status === "booked" || appt.status === "pending"
+                                ? "AWAITING APPROVAL"
+                                : appt.status.toUpperCase()}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-3 text-right">
+                            <div className="flex gap-1.5 justify-end flex-wrap items-center">
+                              {appt.status !== "completed" && appt.status !== "cancelled" && (
+                                <>
+                                  {/* 1. Approve & Queue: shown if awaiting approval, or if not yet queued */}
+                                  {(appt.status === "booked" || appt.status === "pending" || !appt.opd_token_number) && (
+                                    <button
+                                      type="button"
+                                      disabled={approvingApptId === appt.id}
+                                      onClick={() => handleApproveAppointment(appt.id)}
+                                      className="px-3 py-1.5 bg-[#0D9488] hover:bg-[#0F766E] text-white rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1 shadow-xs disabled:opacity-50"
+                                      title="Approve booking and auto-enroll into OPD Queue for scheduled date"
+                                    >
+                                      <Check className="w-3.5 h-3.5" />
+                                      <span>{approvingApptId === appt.id ? "Queuing…" : "Approve & Queue"}</span>
+                                    </button>
+                                  )}
+
+                                  {/* 2. Admit Today: shown if appointment scheduled date or token date is NOT today */}
+                                  {(appt.appointment_date !== todayStr || appt.opd_token_date !== todayStr) && (
+                                    <button
+                                      type="button"
+                                      disabled={approvingApptId === appt.id}
+                                      onClick={() => handleApproveAppointment(appt.id, todayStr)}
+                                      className="px-2.5 py-1.5 bg-teal-50 hover:bg-teal-100 text-[#0D9488] border border-teal-200 rounded-xl text-xs font-semibold transition cursor-pointer flex items-center gap-1 disabled:opacity-50 shadow-xs"
+                                      title="Patient arrived early: admit immediately to today's active live OPD queue"
+                                    >
+                                      <span>{approvingApptId === appt.id ? "Admitting…" : "Admit Today"}</span>
+                                    </button>
+                                  )}
+
+                                  {/* 3. Live OPD TV and Mark Done: for queued, checked-in, or in consultation */}
+                                  {(appt.status === "approved" || appt.status === "checked_in" || appt.status === "in_consultation") && (
+                                    <>
+                                      <Link
+                                        href="/opd-queue"
+                                        className="px-2.5 py-1.5 bg-teal-50 hover:bg-teal-100 text-[#0D9488] border border-teal-200 rounded-xl text-xs font-semibold transition inline-flex items-center gap-1"
+                                        title="Open live OPD Queue TV screen"
+                                      >
+                                        <span>Live OPD TV</span>
+                                      </Link>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleUpdateStatus(appt.id, "completed")}
+                                        className="px-2.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-[#1E3A8A] border border-blue-200 rounded-xl text-xs font-bold transition cursor-pointer"
+                                        title="Mark consultation completed"
+                                      >
+                                        Mark Done
+                                      </button>
+                                    </>
+                                  )}
+
                                   <button
                                     type="button"
-                                    onClick={() => handleApproveAppointment(appt.id, new Date().toISOString().split("T")[0])}
-                                    className="px-2 py-1.5 bg-teal-50 hover:bg-teal-100 text-[#0D9488] border border-teal-200 rounded-xl text-xs font-semibold transition cursor-pointer"
-                                    title="Patient arrived early: admit to today's active waiting queue"
+                                    onClick={() => handleUpdateStatus(appt.id, "cancelled")}
+                                    className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs transition cursor-pointer"
                                   >
-                                    Admit Today
+                                    Cancel
                                   </button>
-                                )}
-                              </>
-                            )}
-                            {(appt.status === "approved" || appt.status === "checked_in") && (
-                              <>
+                                </>
+                              )}
+
+                              {appt.status === "completed" && (
                                 <Link
-                                  href="/opd-queue"
-                                  className="px-2.5 py-1.5 bg-teal-50 hover:bg-teal-100 text-[#0D9488] border border-teal-200 rounded-xl text-xs font-semibold transition inline-flex items-center gap-1"
-                                  title="Open live OPD Queue TV screen"
+                                  href={`/prescriptions/${appt.id}`}
+                                  className="px-2.5 py-1.5 bg-gray-100 hover:bg-gray-200 text-[#1E3A8A] border border-gray-200 rounded-xl text-xs transition inline-flex items-center gap-1"
                                 >
-                                  <span>Live OPD TV</span>
+                                  <span>View Rx</span>
                                 </Link>
-                                <button
-                                  type="button"
-                                  onClick={() => handleUpdateStatus(appt.id, "completed")}
-                                  className="px-2.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-[#1E3A8A] border border-blue-200 rounded-xl text-xs font-bold transition cursor-pointer"
-                                >
-                                  Mark Done
-                                </button>
-                              </>
-                            )}
-                            {appt.status !== "cancelled" && appt.status !== "completed" && (
-                              <button
-                                type="button"
-                                onClick={() => handleUpdateStatus(appt.id, "cancelled")}
-                                className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs transition cursor-pointer"
-                              >
-                                Cancel
-                              </button>
-                            )}
-                            {appt.status === "completed" && (
-                              <Link
-                                href={`/prescriptions/${appt.id}`}
-                                className="px-2.5 py-1.5 bg-gray-100 hover:bg-gray-200 text-[#1E3A8A] border border-gray-200 rounded-xl text-xs transition inline-flex items-center gap-1"
-                              >
-                                <span>View Rx</span>
-                              </Link>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

@@ -109,8 +109,20 @@ def get_all_appointments(
         JOIN users u ON a.user_id = u.id
         JOIN doctors d ON a.doctor_id = d.id
         LEFT JOIN categories c ON d.category_id = c.id
-        LEFT JOIN payments p ON p.appointment_id = a.id
-        LEFT JOIN opd_tokens ot ON ot.appointment_id = a.id AND ot.status != 'cancelled'
+        LEFT JOIN LATERAL (
+            SELECT status, amount
+            FROM payments
+            WHERE appointment_id = a.id
+            ORDER BY id DESC
+            LIMIT 1
+        ) p ON true
+        LEFT JOIN LATERAL (
+            SELECT id, token_number, status, token_date
+            FROM opd_tokens
+            WHERE appointment_id = a.id AND status != 'cancelled'
+            ORDER BY id DESC
+            LIMIT 1
+        ) ot ON true
         {where_clause}
         ORDER BY a.appointment_date DESC, a.appointment_time DESC
     """
@@ -119,7 +131,7 @@ def get_all_appointments(
 
 
 def issue_opd_token_for_appointment(appointment_id: int, queue_date: date | None = None) -> dict | None:
-    """Issues or reactivates an OPD Queue token for a given appointment."""
+    """Issues, updates, or reactivates an OPD Queue token for a given appointment."""
     appt = db.query(
         """
         SELECT a.id, a.user_id, a.doctor_id, a.appointment_date, a.appointment_time, a.status,
@@ -134,7 +146,6 @@ def issue_opd_token_for_appointment(appointment_id: int, queue_date: date | None
     if not appt:
         return None
 
-    # Determine token_date: explicit queue_date, or today if appointment is today or past, or appointment_date
     today = date.today()
     if queue_date:
         target_date = queue_date
@@ -143,12 +154,18 @@ def issue_opd_token_for_appointment(appointment_id: int, queue_date: date | None
     else:
         target_date = appt["appointment_date"]
 
+    if appt.get("appointment_time"):
+        est_call = datetime.combine(target_date, appt["appointment_time"])
+    else:
+        est_call = datetime.now() + timedelta(minutes=15)
+
     # Check if an OPD token already exists for this appointment
     existing_token = db.query(
         """
-        SELECT id, token_number, token_date, status
+        SELECT id, token_number, token_date, status, doctor_id
         FROM opd_tokens
         WHERE appointment_id = %s
+        ORDER BY id DESC
         LIMIT 1
         """,
         (appointment_id,),
@@ -156,21 +173,62 @@ def issue_opd_token_for_appointment(appointment_id: int, queue_date: date | None
     )
 
     if existing_token:
-        if existing_token["status"] == "cancelled":
-            updated_tok = db.query(
-                """
-                UPDATE opd_tokens
-                SET status = 'waiting', token_date = %s
-                WHERE id = %s
-                RETURNING *
-                """,
-                (target_date, existing_token["id"]),
-                decision="fetchone"
-            )
-            return updated_tok
-        return existing_token
+        # If token is already for target_date and for the same doctor
+        if existing_token["token_date"] == target_date and existing_token["doctor_id"] == appt["doctor_id"]:
+            if existing_token["status"] in ("cancelled", "completed"):
+                updated_tok = db.query(
+                    """
+                    UPDATE opd_tokens
+                    SET status = 'waiting', called_at = NULL, patient_arrived = FALSE, patient_name = %s
+                    WHERE id = %s
+                    RETURNING *
+                    """,
+                    (appt["patient_name"], existing_token["id"]),
+                    decision="fetchone"
+                )
+                return updated_tok
+            return existing_token
 
-    # Generate sequential token number for this doctor on this day
+        # Token date or doctor has changed (e.g. "Admit Today" moved future appointment to today):
+        # We must reassign a fresh sequential token number for this doctor on target_date!
+        max_token_row = db.query(
+            "SELECT COALESCE(MAX(token_number), 0) AS max_t FROM opd_tokens WHERE doctor_id = %s AND token_date = %s",
+            (appt["doctor_id"], target_date),
+            decision="fetchone"
+        )
+        max_t = max_token_row["max_t"] if max_token_row else 0
+        if max_t > 0:
+            next_token = max_t + 1
+        else:
+            next_token = appt["doctor_id"] * 100 + 1
+
+        updated_tok = db.query(
+            """
+            UPDATE opd_tokens
+            SET doctor_id = %s,
+                token_number = %s,
+                token_date = %s,
+                status = 'waiting',
+                called_at = NULL,
+                patient_arrived = FALSE,
+                estimated_call_time = %s,
+                patient_name = %s
+            WHERE id = %s
+            RETURNING *
+            """,
+            (
+                appt["doctor_id"],
+                next_token,
+                target_date,
+                est_call,
+                appt["patient_name"],
+                existing_token["id"]
+            ),
+            decision="fetchone"
+        )
+        return updated_tok
+
+    # No existing token: generate sequential token number for this doctor on target_date
     max_token_row = db.query(
         "SELECT COALESCE(MAX(token_number), 0) AS max_t FROM opd_tokens WHERE doctor_id = %s AND token_date = %s",
         (appt["doctor_id"], target_date),
@@ -182,17 +240,12 @@ def issue_opd_token_for_appointment(appointment_id: int, queue_date: date | None
     else:
         next_token = appt["doctor_id"] * 100 + 1
 
-    if appt.get("appointment_time"):
-        est_call = datetime.combine(target_date, appt["appointment_time"])
-    else:
-        est_call = datetime.now() + timedelta(minutes=15)
-
     new_tok = db.query(
         """
         INSERT INTO opd_tokens (
             appointment_id, doctor_id, patient_name, token_number, token_date, status, estimated_call_time, created_at, called_at, patient_arrived
         ) VALUES (
-            %s, %s, %s, %s, %s, 'waiting', %s, NOW(), NOW(), FALSE
+            %s, %s, %s, %s, %s, 'waiting', %s, NOW(), NULL, FALSE
         )
         RETURNING *
         """,
@@ -220,25 +273,69 @@ def approve_appointment(
     if claims.get("role") not in ("admin", "doctor"):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Clinic staff privileges required.")
 
-    updated = db.query(
-        """
-        UPDATE appointments
-        SET status = 'approved'
-        WHERE id = %s
-        RETURNING id, status, appointment_date, appointment_time, doctor_id, user_id
-        """,
-        (appointment_id,),
-        decision="fetchone"
-    )
+    target_queue_date = payload.queue_date if (payload and payload.queue_date) else None
+
+    # If target_queue_date is explicitly provided (e.g. Admit Today):
+    # sync the appointment's scheduled date to target_queue_date as well!
+    if target_queue_date:
+        current_appt = db.query(
+            "SELECT doctor_id, appointment_date, appointment_time FROM appointments WHERE id = %s",
+            (appointment_id,),
+            decision="fetchone"
+        )
+        if not current_appt:
+            raise HTTPException(status_code=404, detail="Appointment not found.")
+
+        target_time = current_appt["appointment_time"]
+        # If another appointment already occupies this slot on target_queue_date:
+        conflict = db.query(
+            """
+            SELECT id FROM appointments 
+            WHERE doctor_id = %s AND appointment_date = %s AND appointment_time = %s AND id != %s
+            """,
+            (current_appt["doctor_id"], target_queue_date, target_time, appointment_id),
+            decision="fetchone"
+        )
+        if conflict:
+            target_time = datetime.now().time().replace(microsecond=0)
+            while db.query(
+                "SELECT id FROM appointments WHERE doctor_id = %s AND appointment_date = %s AND appointment_time = %s AND id != %s",
+                (current_appt["doctor_id"], target_queue_date, target_time, appointment_id),
+                decision="fetchone"
+            ):
+                target_dt = datetime.combine(date.today(), target_time) + timedelta(minutes=1)
+                target_time = target_dt.time()
+
+        updated = db.query(
+            """
+            UPDATE appointments
+            SET status = 'approved', appointment_date = %s, appointment_time = %s
+            WHERE id = %s
+            RETURNING id, status, appointment_date, appointment_time, doctor_id, user_id
+            """,
+            (target_queue_date, target_time, appointment_id),
+            decision="fetchone"
+        )
+    else:
+        updated = db.query(
+            """
+            UPDATE appointments
+            SET status = 'approved'
+            WHERE id = %s
+            RETURNING id, status, appointment_date, appointment_time, doctor_id, user_id
+            """,
+            (appointment_id,),
+            decision="fetchone"
+        )
+
     if not updated:
         raise HTTPException(status_code=404, detail="Appointment not found.")
 
-    target_queue_date = payload.queue_date if payload else None
     token = issue_opd_token_for_appointment(appointment_id, target_queue_date)
 
     return {
         "success": True,
-        "message": f"Appointment #{appointment_id} approved. OPD Token #{token['token_number'] if token else 'N/A'} issued.",
+        "message": f"Appointment #{appointment_id} approved. OPD Token #{token['token_number'] if token else 'N/A'} issued for {token['token_date'] if token else 'queue'}.",
         "appointment": updated,
         "token": token
     }
@@ -289,6 +386,8 @@ def update_appointment_status(
         db.query("UPDATE opd_tokens SET status = 'completed' WHERE appointment_id = %s", (appointment_id,))
     elif status_val == "in_consultation":
         db.query("UPDATE opd_tokens SET status = 'in_consultation', called_at = NOW() WHERE appointment_id = %s", (appointment_id,))
+    elif status_val in ("booked", "pending"):
+        db.query("UPDATE opd_tokens SET status = 'cancelled' WHERE appointment_id = %s", (appointment_id,))
 
     return {"success": True, "appointment": updated, "token": token}
 
