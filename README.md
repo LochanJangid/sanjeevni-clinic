@@ -203,4 +203,5 @@ Visit **`http://localhost:3000`** in your browser.
 ---
 
 ## 📜 License
-Developed for **Sanjeevni Clinic & Medical Pavilion**. Proprietary clinical operating software. All rights reserved.
+- Play with this project that's ours bro :)
+- MIT LICENSE
